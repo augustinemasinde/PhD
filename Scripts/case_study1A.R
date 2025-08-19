@@ -19,7 +19,7 @@ set.seed(0)
 cl <- makeCluster(5)
 
 ## Note that this vignette was generated on a Windows machine,
-## and the setup for parallelisation is different on a Linux or Mac:
+## and the setup for parallelisation is different on a Linux or Mac the code misbehaved
 
 if(Sys.info()[["sysname"]]=="Darwin" | Sys.info()[["sysname"]]=="Linux"){
   library(doMC)
