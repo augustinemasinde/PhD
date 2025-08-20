@@ -1,3 +1,4 @@
+install.packages("rstan")
 # Required to run serosolver
 devtools::install_github("seroanalytics/serosolver", ref = "published", force = TRUE)
 library(serosolver)
