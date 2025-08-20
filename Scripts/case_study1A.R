@@ -1,5 +1,5 @@
 # Required to run serosolver
-devtools::install_github("seroanalytics/serosolver")
+devtools::install_github("seroanalytics/serosolver", ref = "published", force = TRUE)
 library(serosolver)
 library(plyr)
 library(data.table)
