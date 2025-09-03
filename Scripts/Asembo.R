@@ -133,42 +133,52 @@ manyattadata$agecat<- as.factor(manyattadata$agecat)
 manyatabiv3<- tableby(DENpos ~ agecat + sex , data = manyattadata) %>%
   summary(text = TRUE, title = "Manyatta Arbovirus Study denv")
 write2word(manyatabiv3, file = "Manyatta biv DENV.docx")
+
+
 Kilifidata$agecat<- as.factor(Kilifidata$agecat)
 Kilifidata$sex<- as.factor(Kilifidata$sex)
 Kilifidata$chke1_pos<- as.factor(Kilifidata$chke1_pos)
 kilifibiv1<- tableby(chke1_pos~agecat+sex , data = Kilifidata) %>%
   summary(text = TRUE, title = "Kilifi Arbovirus Study chikv")
 write2word(kilifibiv1, file = "Kilifi biv CHIKV.docx")
+
 Kilifidata$rvfgc_pos<- as.factor(Kilifidata$rvfgc_pos)
 Kilifidata$sex<- as.factor(Kilifidata$sex)
 Kilifidata$agecat<- as.factor(Kilifidata$agecat)
 kilifibiv2 <- tableby(rvfgc_pos ~ agecat + sex , data = Kilifidata) %>%
   summary(text = TRUE, title = "Kilifi Arbovirus Study rvfv")
 write2word(kilifibiv2, file = "Kilifi biv RVFV.docx")
+
 Kilifidata$denv_pos<- as.factor(Kilifidata$denv_pos)
 Kilifidata$sex<- as.factor(Kilifidata$sex)
 Kilifidata$agecat<- as.factor(Kilifidata$agecat)
 kilifibiv3 <- tableby(denv_pos ~ agecat+sex , data = Kilifidata) %>%
   summary(text = TRUE, title = "Kilifi Arbovirus Study denv")
 write2word(kilifibiv3, file = "Kilifi biv DENV.docx")
+
+
 Kiberadata$agecat<- as.factor(Kiberadata$agecat)
 Kiberadata$sex<- as.factor(Kiberadata$sex)
 Kiberadata$chke1_pos<- as.factor(Kiberadata$chke1_pos)
 kiberabiv1 <- tableby(chke1_pos~agecat+sex , data = Kiberadata) %>%
   summary(text = TRUE, title = "Kibera Arbovirus Study chikv")
 write2word(kiberabiv1, file = "Kibera biv CHIKV.docx")
+
 Kiberadata$rvfgc_pos<- as.factor(Kiberadata$rvfgc_pos)
 Kiberadata$sex<- as.factor(Kiberadata$sex)
 Kiberadata$agecat<- as.factor(Kiberadata$agecat)
 kiberabiv2 <- tableby(rvfgc_pos ~ agecat+sex , data = Kiberadata) %>%
   summary(text = TRUE, title = "Kibera Arbovirus Study rvfv")
 write2word(kiberabiv2, file = "Kibera biv RVFV.docx")
+
 Kiberadata$denv_pos<- as.factor(Kiberadata$denv_pos)
 Kiberadata$sex<- as.factor(Kiberadata$sex)
 Kiberadata$agecat<- as.factor(Kiberadata$agecat)
 kiberabiv3 <- tableby(denv_pos ~agecat+sex , data = Kiberadata) %>%
   summary(text = TRUE, title = "Kibera Arbovirus Study denv")
 write2word(kiberabiv3, file = "Kibera biv DENV.docx")
+
+
 NairobiUrbandata$agecat<- as.factor(NairobiUrbandata$agecat)
 NairobiUrbandata$sex<- as.factor(NairobiUrbandata$sex)
 NairobiUrbandata$chke1_pos<- as.factor(NairobiUrbandata$chke1_pos)
