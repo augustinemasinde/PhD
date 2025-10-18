@@ -10,3 +10,4 @@
 .RData
 .Rhistory
 .DS_Store
+.RDataTmp*
