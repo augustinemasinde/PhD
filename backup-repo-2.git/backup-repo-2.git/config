@@ -4,3 +4,6 @@
 	bare = true
 	ignorecase = true
 	precomposeunicode = true
+[remote "origin"]
+	url = https://github.com/augustinemasinde/PhD_GH.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
