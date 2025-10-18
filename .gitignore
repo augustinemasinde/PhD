@@ -6,3 +6,7 @@
 .RData
 .Rhistory
 .DS_Store
+.RDataTmp*
+.RData
+.Rhistory
+.DS_Store
