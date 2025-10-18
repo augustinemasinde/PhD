@@ -1,0 +1,13 @@
+
+model {
+  for (i in 1:I) {
+    Npos[i] ~ dbin(p_obs[i], Ntest[i])
+    p_obs[i] <- prob[i] * sens + (1 - prob[i]) * (1 - spec)
+    prob[i] ~ dbeta(1, 1)   # flat prior for prevalence
+  }
+
+  # Priors for test accuracy
+  spec ~ dbeta(612.681, 4.319)
+  sens ~ dbeta(592.32, 24.68)
+}
+

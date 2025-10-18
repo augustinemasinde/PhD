@@ -136,6 +136,7 @@ chik.sero.aggregated = SeroData(age_at_sampling = chikdata$Age_Yrs,
 #seroprevalence estimation
 seroprevalence(chik.sero.aggregated) # Value of the seroprevalence
 seroprevalence.plot(chik.sero.aggregated) # plots of the seroprevalence vs age
+
 #fit the model constant model
 ConstantModel = FOImodel(type = 'constant')
 FOIfit.constant = fit(data = chik.sero.aggregated,  model = ConstantModel, chains=1)
