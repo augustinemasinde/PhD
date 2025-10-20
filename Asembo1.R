@@ -1,3 +1,6 @@
+# ensure working directory is the folder with the .dta/.xlsx files
+setwd("/Users/augustinemasinde/Desktop/PhD files/Global Health")
+
 library(haven)
 library(dplyr)
 library(arsenal)
