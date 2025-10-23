@@ -267,12 +267,12 @@ asembodata <- asembodata %>%
 asembodata$sex<-as.character(asembodata$sex)
 
 asembo_chik <-SeroData(age_at_sampling = asembodata$ageyrs,
-                       Y= asembodata$CHKpos,
+                       Y= asembodata$DENpos,
                        sampling_year = 2022)
 seroprevalence(asembo_chik)
 seroprevalence.plot(asembo_chik, age_class = 5)
 #fit the model constant model
-piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.6, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 0, K=2, priorT1 = c(5,50), priorT2 = c(20,70))
+piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.6, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(5,50), priorT2 = c(15,70), se = 0.93, sp=0.902)
 
 
 piecewise = fit(data = asembo_chik,  model = piecewisemodel, chains=1, iter=5000)
@@ -317,17 +317,18 @@ manyatta_chik <-SeroData(age_at_sampling = manyattadata$ageyrs,
 seroprevalence(manyatta_chik)
 seroprevalence.plot(manyatta_chik, age_class = 5)
 #fit the model constant model
-ConstantModel = FOImodel(type = 'constant', priorC1 = 0.079,priorC2 = 1, seroreversion = 1, priorRho1 = 0.20, priorRho2 = 0)
+manyattapiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.2, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(25,50), priorT2 = c(35,70))
 
-FOIfit.constant = fit(data = manyatta_chik,  model = ConstantModel, chains=1, iter=5000)
-seroprevalence.fit(FOIfit.constant, YLIM=1, age_class = 5)
+
+manyattapiecewisemodel = fit(data = manyatta_chik,  model = manyattapiecewisemodel, chains=1, iter=5000)
+seroprevalence.fit(manyattapiecewisemodel, YLIM=1, age_class = 5)
 
 #Plotting the posterior distributions
-plot_posterior(FOIfit.constant)
+plot_posterior(manyattapiecewisemodel)
 
 #Posterior distribution of relevant model parameters
-parameters_credible_intervals(FOIfit.constant)
-traceplot_Rsero(FOIfit.constant)
+parameters_credible_intervals(manyattapiecewisemodel)
+traceplot_Rsero(manyattapiecewisemodel)
 
 
 
@@ -443,13 +444,13 @@ df_all$ageyrs=  as.integer(df_all$ageyrs)
 df_chik <-SeroData(age_at_sampling = round(as.numeric(df_all$ageyrs)),
                              Y= as.numeric(df_all$RVFpos),
                              category = as.character(df_all$site),
-                             reference.category = "NAIROBI",
+                             reference.category = cbind("ASEMBO", "MANYATTA", "KILIFI", "kibera", "NAIROBI"),
                              sampling_year = as.numeric(2022))
 seroprevalence(df_chik)
 seroprevalence.plot(df_chik, age_class = 5)
 
 #model of force of infections
-piecewisemodel2= FOImodel(type="piecewise", cat_lambda = TRUE, priorC1 = 0.02, priorC2 = 1, seroreversion = 1, priorRho1 = 0.20, priorRho2 = 1, K=2, priorT1 = c(20,50), priorT2 = c(30,80))
+piecewisemodel2= FOImodel(type="piecewise", cat_lambda = TRUE, priorC1 = 0.02, priorC2 = 1, seroreversion = 0, priorRho1 = 0.20, priorRho2 = 1, K=2, priorT1 = c(20,50), priorT2 = c(30,80))
 
 #fit the model
 piecewise2= fit(data=df_chik, model=piecewisemodel2, chains=1, iter=5000)
@@ -655,6 +656,205 @@ df_all %>%
   filter(CHKpos == 1 & RVFpos == 1 & DENpos == 1) %>%
          group_by(sex) %>%
          summarise(count = n())
+
+
+
+
+
+
+#visualizations
+library(ggplot2)
+library(tidyverse)
+summary_df <- df_all %>%
+  group_by(age_cat) %>%
+  summarise(
+    n = n(),
+    prop_positive = mean(RVFpos, na.rm = TRUE),        # TRUE treated as 1, FALSE as 0
+    prop_negative = 1 - mean(RVFpos, na.rm = TRUE)
+  )
+summary_long <- summary_df %>%
+  pivot_longer(
+    cols = starts_with("prop_"),
+    names_to = "status",
+    values_to = "proportion"
+  ) %>%
+  mutate(status = factor(status,
+                         levels = c("prop_negative", "prop_positive"),
+                         labels = c("Negative", "Positive")))
+
+ggplot(summary_long, aes(x = age_cat, y = proportion, fill = status)) +
+  geom_bar(stat = "identity", width = 0.8, color = "black") +
+  geom_text(
+    aes(x = age_cat, y = 1.03, label = paste0("n = ", n)),
+    data = summary_df,
+    size = 4,
+    inherit.aes = FALSE
+  ) +
+  scale_fill_manual(
+    values = c("grey90", "#6baed6"),
+    name = "Serostatus"
+  ) +
+  scale_y_continuous(
+    name = "Proportion seropositive",
+    limits = c(0, 1.05),
+    breaks = seq(0, 1, by = 0.2),
+    expand = c(0, 0)
+  ) +
+  labs(
+    title = "RVFV Proportion Seropositive by Age Group",
+    x = "Age (years)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+
+
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+nairobi <- data.frame(
+  site = "Nairobi Urban HDSS",
+  agecat = c("<5","5–14","15–44","45–64","65+"),
+  CHIKV = c(2.2, 6.0, 11.5, 11.4, 3.9),
+  CHIKV_low = c(0.3, 3.1, 8.1, 7.4, 0.5),
+  CHIKV_high = c(7.7, 10.2, 15.6, 16.7, 13.5),
+  DENV = c(0.0, 0.0, 1.3, 2.5, 2.0),
+  DENV_low = c(0.0, 0.0, 0.4, 0.8, 0.0),
+  DENV_high = c(4.0, 1.8, 3.3, 5.7, 10.5),
+  RVFV = c(1.1, 2.5, 3.0, 0.5, 0.0),
+  RVFV_low = c(0.0, 0.8, 1.4, 0.0, 0.0),
+  RVFV_high = c(6.0, 5.7, 5.5, 3.1, 7.0)
+)
+
+kibera <- data.frame(
+  site = "Kibera PBIDS",
+  agecat = c("<5","5–14","15–44","45–64","65+"),
+  CHIKV = c(4.6, 10.0, 37.6, 51.6, 40.0),
+  CHIKV_low = c(0.6, 6.5, 33.0, 41.1, 5.3),
+  CHIKV_high = c(15.5, 14.6, 42.4, 62.0, 85.3),
+  DENV = c(0.0, 2.6, 1.6, 1.1, 0.0),
+  DENV_low = c(0.0, 0.9, 0.6, 0.0, 0.0),
+  DENV_high = c(8.0, 5.6, 3.3, 5.7, 52.2),
+  RVFV = c(6.8, 2.2, 3.0, 3.2, 20.0),
+  RVFV_low = c(1.4, 0.7, 0.9, 0.7, 0.5),
+  RVFV_high = c(18.7, 5.0, 9.2, 9.0, 71.6)
+)
+
+manyatta <- data.frame(
+  site = "Manyatta HDSS",
+  agecat = c("<5","5–14","15–44","45–64","65+"),
+  CHIKV = c(4.3, 15.4, 34.4, 39.2, 45.5),
+  CHIKV_low = c(0.5, 10.6, 30.1, 28.0, 18.6),
+  CHIKV_high = c(14.5, 21.2, 38.9, 51.2, 76.6),
+  DENV = c(0.0, 1.0, 3.2, 2.7, 0.0),
+  DENV_low = c(0.0, 0.1, 1.8, 0.3, 0.0),
+  DENV_high = c(7.6, 3.7, 5.2, 9.4, 28.5),
+  RVFV = c(0.0, 1.5, 1.5, 2.7, 0.0),
+  RVFV_low = c(0.0, 0.3, 0.6, 0.3, 0.0),
+  RVFV_high = c(7.6, 4.4, 3.0, 9.4, 28.5)
+)
+
+kilifi <- data.frame(
+  site = "Kilifi HDSS",
+  agecat = c("<5","5–14","15–44","45–64","65+"),
+  CHIKV = c(6.3, 9.5, 22.2, 50.5, 64.0),
+  CHIKV_low = c(3.2, 6.5, 17.7, 43.4, 49.2),
+  CHIKV_high = c(13.1, 14.2, 27.3, 57.6, 77.1),
+  DENV = c(7.3, 14.9, 22.6, 70.8, 88.0),
+  DENV_low = c(3.0, 10.2, 14.4, 64.0, 75.7),
+  DENV_high = c(14.4, 20.7, 30.8, 83.9, 95.5),
+  RVFV = c(1.0, 3.6, 3.3, 5.5, 0.0),
+  RVFV_low = c(0.5, 1.5, 1.6, 2.8, 0.0),
+  RVFV_high = c(5.7, 7.3, 5.9, 9.5, 7.1)
+)
+
+asembo <- data.frame(
+  site = "Asembo PBIDS",
+  agecat = c("<5","5–14","15–44","45–64","65+"),
+  CHIKV = c(56.9, 74.1, 70.0, 73.5, 78.3),
+  CHIKV_low = c(44.7, 68.5, 64.7, 64.3, 65.8),
+  CHIKV_high = c(68.6, 79.1, 74.9, 81.3, 87.9),
+  DENV = c(0.0, 0.0, 0.6, 0.9, 5.0),
+  DENV_low = c(0.0, 0.0, 0.1, 0.0, 1.0),
+  DENV_high = c(5.0, 1.3, 2.2, 4.8, 13.9),
+  RVFV = c(0.0, 3.6, 6.7, 5.3, 0.0),
+  RVFV_low = c(0.0, 1.7, 4.2, 2.0, 0.0),
+  RVFV_high = c(5.0, 6.5, 9.9, 11.2, 6.0)
+)
+
+### --- Combine all sites --- ###
+
+sero_all <- bind_rows(nairobi, kibera, manyatta, kilifi, asembo)
+
+# Tidy long format
+sero_long <- sero_all %>%
+  pivot_longer(cols = c(CHIKV, DENV, RVFV),
+               names_to = "virus", values_to = "seroprev") %>%
+  left_join(
+    sero_all %>%
+      pivot_longer(cols = c(CHIKV_low, DENV_low, RVFV_low),
+                   names_to = "virus_low", values_to = "low") %>%
+      mutate(virus = gsub("_low", "", virus_low)) %>%
+      select(site, agecat, virus, low),
+    by = c("site", "agecat", "virus")
+  ) %>%
+  left_join(
+    sero_all %>%
+      pivot_longer(cols = c(CHIKV_high, DENV_high, RVFV_high),
+                   names_to = "virus_high", values_to = "high") %>%
+      mutate(virus = gsub("_high", "", virus_high)) %>%
+      select(site, agecat, virus, high),
+    by = c("site", "agecat", "virus")
+  ) %>%
+  mutate(
+    virus = factor(virus, levels = c("CHIKV", "DENV", "RVFV")),
+    agecat = factor(gsub("–", "-", agecat),
+                    levels = c("<5","5-14","15-44","45-64","65+"),
+                    ordered = TRUE)
+  )
+
+### --- Define reusable plotting function --- ###
+
+plot_virus <- function(virus_name) {
+  pd <- position_dodge(width = 0.8)
+  
+  ggplot(filter(sero_long, virus == virus_name),
+         aes(x = agecat, y = seroprev, fill = site)) +
+    geom_col(position = pd, width = 0.7) +
+    geom_errorbar(aes(ymin = low, ymax = high), position = pd, width = 0.2) +
+    geom_text(aes(label = sprintf("%.1f", seroprev)),
+              position = position_dodge(width = 0.8),
+              vjust = -0.6, size = 3) +
+    labs(
+      title = paste0("Age- and Site-Specific Crude Seroprevalence of ", virus_name),
+      x = "Age Group",
+      y = "Crude Seroprevalence (%)",
+      fill = "Site"
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+    theme_minimal(base_size = 13) +
+    theme(
+      legend.position = "top",
+      axis.text.x = element_text(angle = 30, hjust = 1),
+      plot.title = element_text(face = "bold", size = 15, hjust = 0.5)
+    )
+}
+
+### --- Generate individual virus plots --- ###
+
+plot_virus("CHIKV")
+plot_virus("DENV")
+plot_virus("RVFV")
+
+
+
        
 
 
@@ -810,8 +1010,6 @@ kilifi_pop_data <- kilifi_pop_data %>%
 
 kilifi_pop_data<- kilifi_pop_data %>% group_by(Sex, age_group) %>%          
   summarise(N_mid2022 = sum(pop), .groups = "drop")
-
-
 
 
 
@@ -1084,7 +1282,7 @@ n <- array(kibera_counts$n, dim = c(5, 2))
 pw <- array(kibera_pw$pw, dim = c(5, 2))
 tot_pw_age <- rowSums(pw, dims = 1)
 tot_pw_sex <- colSums(pw)
-
+###########################################################################################################
 #combined data
 nrb_set <- nairobi_pop_data %>% select(Ageband,Sex, N_mid2022, age_group)
 nrb_set <- nrb_set %>% rename(agecat = age_group, pop = N_mid2022,sex = Sex)
@@ -1119,48 +1317,68 @@ df_set<-df_set %>% mutate(pw = pop/sum(pop)) %>% select(site,agecat, sex, pop, p
 df_set <- df_set %>%
   mutate(agecat = factor(agecat, levels = c("<5", "5-14", "15-44", "45-64", "65+"))) %>%
   arrange(agecat)
-df_set$sex<- as.character(df_set$sex)
+df_set$sex<- as.factor(df_set$sex)
 df_set<- df_set %>% select(site, agecat, sex, pop, pw)
 
-#cases calculation
-asembo_counts <- asembo_counts %>%
-  mutate(
-    sex = ifelse(sex == "F", "Female",
-                 ifelse(sex == "M", "Male", sex))
-  )
-
-kilifi_counts <- kilifi_counts %>%
-  mutate(
-    sex = ifelse(sex == "f", "Female",
-                 ifelse(sex == "m", "Male", sex))
-  )
-
-kibera_counts <- kibera_counts %>%
-  mutate(
-    sex = ifelse(sex == "F", "Female",
-                 ifelse(sex == "M", "Male", sex))
-  )
-nrb_counts$site<- "NAIROBI"
-asembo_counts$site<- "ASEMBO"
-manyatta_counts$site<- "MANYATTA"
-kilifi_counts$site<- "KILIFI"
-kibera_counts$site<- "KIBERA"
-df_counts <- rbind(asembo_counts, manyatta_counts, kilifi_counts, kibera_counts, nrb_counts)
-
-df_counts$sex<- as.character(df_counts$sex)
-df_counts$agecat<- as.factor(df_counts$agecat)
-
-df_data <- df_set %>%
-  left_join(df_counts, by = c("site", "agecat", "sex"))
+dt_set <- df_set %>%
+  mutate(agecat = factor(agecat, levels = c("<5", "5-14", "15-44", "45-64", "65+"))) %>%
+  arrange(agecat)
+df_set$site<-as.factor(df_set$site)
+df_set$sex<- as.factor(df_set$sex)
 
 
-df_pw <- 
+df_all<- df_all %>% mutate(site = case_when(
+  site == "Asembo" ~ "ASEMBO",
+  site == "Manyatta" ~ "MANYATTA",
+  site == "Kilifi" ~ "KILIFI",
+  site == "Kibera" ~ "KIBERA",
+  site == "Nairobi Urban" ~ "NAIROBI",
+  TRUE ~ site
+))
+
+df_data <- df_all %>%
+  mutate(agecat = case_when(
+    ageyrs >= 0 & ageyrs < 5 ~ "<5",
+    ageyrs >= 5 & ageyrs <15 ~ "5-14",
+    ageyrs >= 15 & ageyrs <45 ~ "15-44",
+    ageyrs >= 45 & ageyrs <65 ~ "45-64",
+    ageyrs >= 65 ~ "65+",
+    TRUE ~ NA_character_
+  ))
+df_data$CHKpos<- as.numeric(df_data$CHKpos)
+df_data <- df_data %>% mutate(CHKpos = ifelse(CHKpos == 2, 1, 0))
+
+df_data$DENpos<- as.numeric(df_data$DENpos)
+df_data <- df_data %>% mutate(DENpos = ifelse(DENpos == 2, 1, 0))
+df_data$RVFpos<- as.numeric(df_data$RVFpos)
+df_data <- df_data %>% mutate(RVFpos = ifelse(RVFpos == 2, 1, 0))
+df_data<- df_data %>% select(agecat, sex, site, CHKpos,DENpos,RVFpos)
+
+
+df_data <- df_data %>%
+  mutate(agecat = factor(agecat, levels = c("<5", "5-14", "15-44", "45-64", "65+"))) %>%
+  arrange(agecat)
+
+
+df_counts <- 
   df_data %>%
-  group_by(sex, agecat,site, .drop = FALSE) %>%
+  group_by(agecat,sex,site, .drop = FALSE) %>%
+  summarise(y = sum(DENpos), n = n()) %>%
+  mutate(n=ifelse(is.na(y),1,n), 
+         y=ifelse(is.na(y),0,y)) 
+
+df_data <-df_counts %>% 
+  left_join(df_set, by = c("sex", "agecat", "site"))
+
+
+################################################
+asembo_pw <- 
+  asembo_data %>%
+  group_by(agecat,sex, .drop = FALSE) %>%
   summarise(pw = mean(pw))
-y <- array(df_counts$y, dim = c(5, 2,5))
-n <- array(kibera_counts$n, dim = c(5, 2,5))
-pw <- array(kibera_pw$pw, dim = c(5, 2,5))
+y <- array(asembo_counts$y, dim = c(5, 2))
+n <- array(asembo_counts$n, dim = c(5, 2))
+pw <- array(asembo_pw$pw, dim = c(5, 2))
 tot_pw_age <- rowSums(pw, dims = 1)
 tot_pw_sex <- colSums(pw)
 
@@ -1282,213 +1500,36 @@ out_adj <- out_adj[9:17, c(1, 4, 8)]
 
 
 
+#################################################
+#overall model
+####################################################
+df_pw <- df_data %>%
+  group_by(agecat, sex, site, .drop = FALSE) %>%
+  summarise(pw = mean(pw))
 
-#visualizations
-library(ggplot2)
-library(tidyverse)
-summary_df <- df_all %>%
-  group_by(age_cat) %>%
-  summarise(
-    n = n(),
-    prop_positive = mean(RVFpos, na.rm = TRUE),        # TRUE treated as 1, FALSE as 0
-    prop_negative = 1 - mean(RVFpos, na.rm = TRUE)
-  )
-summary_long <- summary_df %>%
-  pivot_longer(
-    cols = starts_with("prop_"),
-    names_to = "status",
-    values_to = "proportion"
-  ) %>%
-  mutate(status = factor(status,
-                         levels = c("prop_negative", "prop_positive"),
-                         labels = c("Negative", "Positive")))
 
-ggplot(summary_long, aes(x = age_cat, y = proportion, fill = status)) +
-  geom_bar(stat = "identity", width = 0.8, color = "black") +
-  geom_text(
-    aes(x = age_cat, y = 1.03, label = paste0("n = ", n)),
-    data = summary_df,
-    size = 4,
-    inherit.aes = FALSE
-  ) +
-  scale_fill_manual(
-    values = c("grey90", "#6baed6"),
-    name = "Serostatus"
-  ) +
-  scale_y_continuous(
-    name = "Proportion seropositive",
-    limits = c(0, 1.05),
-    breaks = seq(0, 1, by = 0.2),
-    expand = c(0, 0)
-  ) +
-  labs(
-    title = "RVFV Proportion Seropositive by Age Group",
-    x = "Age (years)"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+y <- array(df_counts$y, dim = c(5, 2, 5))
+n <- array(df_counts$n, dim = c(5, 2, 5))
+pw <- array(df_pw$pw, dim = c(5, 2, 5))
+
+tot_pw_age <- apply(pw, 1, sum)
+tot_pw_sex <- apply(pw, 2, sum)
+tot_pw_region <- apply(pw, 3, sum)
 
 
 
-
-# Load libraries
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
-nairobi <- data.frame(
-  site = "Nairobi Urban HDSS",
-  agecat = c("<5","5–14","15–44","45–64","65+"),
-  CHIKV = c(2.2, 6.0, 11.5, 11.4, 3.9),
-  CHIKV_low = c(0.3, 3.1, 8.1, 7.4, 0.5),
-  CHIKV_high = c(7.7, 10.2, 15.6, 16.7, 13.5),
-  DENV = c(0.0, 0.0, 1.3, 2.5, 2.0),
-  DENV_low = c(0.0, 0.0, 0.4, 0.8, 0.0),
-  DENV_high = c(4.0, 1.8, 3.3, 5.7, 10.5),
-  RVFV = c(1.1, 2.5, 3.0, 0.5, 0.0),
-  RVFV_low = c(0.0, 0.8, 1.4, 0.0, 0.0),
-  RVFV_high = c(6.0, 5.7, 5.5, 3.1, 7.0)
-)
-
-kibera <- data.frame(
-  site = "Kibera PBIDS",
-  agecat = c("<5","5–14","15–44","45–64","65+"),
-  CHIKV = c(4.6, 10.0, 37.6, 51.6, 40.0),
-  CHIKV_low = c(0.6, 6.5, 33.0, 41.1, 5.3),
-  CHIKV_high = c(15.5, 14.6, 42.4, 62.0, 85.3),
-  DENV = c(0.0, 2.6, 1.6, 1.1, 0.0),
-  DENV_low = c(0.0, 0.9, 0.6, 0.0, 0.0),
-  DENV_high = c(8.0, 5.6, 3.3, 5.7, 52.2),
-  RVFV = c(6.8, 2.2, 3.0, 3.2, 20.0),
-  RVFV_low = c(1.4, 0.7, 0.9, 0.7, 0.5),
-  RVFV_high = c(18.7, 5.0, 9.2, 9.0, 71.6)
-)
-
-manyatta <- data.frame(
-  site = "Manyatta HDSS",
-  agecat = c("<5","5–14","15–44","45–64","65+"),
-  CHIKV = c(4.3, 15.4, 34.4, 39.2, 45.5),
-  CHIKV_low = c(0.5, 10.6, 30.1, 28.0, 18.6),
-  CHIKV_high = c(14.5, 21.2, 38.9, 51.2, 76.6),
-  DENV = c(0.0, 1.0, 3.2, 2.7, 0.0),
-  DENV_low = c(0.0, 0.1, 1.8, 0.3, 0.0),
-  DENV_high = c(7.6, 3.7, 5.2, 9.4, 28.5),
-  RVFV = c(0.0, 1.5, 1.5, 2.7, 0.0),
-  RVFV_low = c(0.0, 0.3, 0.6, 0.3, 0.0),
-  RVFV_high = c(7.6, 4.4, 3.0, 9.4, 28.5)
-)
-
-kilifi <- data.frame(
-  site = "Kilifi HDSS",
-  agecat = c("<5","5–14","15–44","45–64","65+"),
-  CHIKV = c(6.3, 9.5, 22.2, 50.5, 64.0),
-  CHIKV_low = c(3.2, 6.5, 17.7, 43.4, 49.2),
-  CHIKV_high = c(13.1, 14.2, 27.3, 57.6, 77.1),
-  DENV = c(7.3, 14.9, 22.6, 70.8, 88.0),
-  DENV_low = c(3.0, 10.2, 14.4, 64.0, 75.7),
-  DENV_high = c(14.4, 20.7, 30.8, 83.9, 95.5),
-  RVFV = c(1.0, 3.6, 3.3, 5.5, 0.0),
-  RVFV_low = c(0.5, 1.5, 1.6, 2.8, 0.0),
-  RVFV_high = c(5.7, 7.3, 5.9, 9.5, 7.1)
-)
-
-asembo <- data.frame(
-  site = "Asembo PBIDS",
-  agecat = c("<5","5–14","15–44","45–64","65+"),
-  CHIKV = c(56.9, 74.1, 70.0, 73.5, 78.3),
-  CHIKV_low = c(44.7, 68.5, 64.7, 64.3, 65.8),
-  CHIKV_high = c(68.6, 79.1, 74.9, 81.3, 87.9),
-  DENV = c(0.0, 0.0, 0.6, 0.9, 5.0),
-  DENV_low = c(0.0, 0.0, 0.1, 0.0, 1.0),
-  DENV_high = c(5.0, 1.3, 2.2, 4.8, 13.9),
-  RVFV = c(0.0, 3.6, 6.7, 5.3, 0.0),
-  RVFV_low = c(0.0, 1.7, 4.2, 2.0, 0.0),
-  RVFV_high = c(5.0, 6.5, 9.9, 11.2, 6.0)
-)
-
-### --- Combine all sites --- ###
-
-sero_all <- bind_rows(nairobi, kibera, manyatta, kilifi, asembo)
-
-# Tidy long format
-sero_long <- sero_all %>%
-  pivot_longer(cols = c(CHIKV, DENV, RVFV),
-               names_to = "virus", values_to = "seroprev") %>%
-  left_join(
-    sero_all %>%
-      pivot_longer(cols = c(CHIKV_low, DENV_low, RVFV_low),
-                   names_to = "virus_low", values_to = "low") %>%
-      mutate(virus = gsub("_low", "", virus_low)) %>%
-      select(site, agecat, virus, low),
-    by = c("site", "agecat", "virus")
-  ) %>%
-  left_join(
-    sero_all %>%
-      pivot_longer(cols = c(CHIKV_high, DENV_high, RVFV_high),
-                   names_to = "virus_high", values_to = "high") %>%
-      mutate(virus = gsub("_high", "", virus_high)) %>%
-      select(site, agecat, virus, high),
-    by = c("site", "agecat", "virus")
-  ) %>%
-  mutate(
-    virus = factor(virus, levels = c("CHIKV", "DENV", "RVFV")),
-    agecat = factor(gsub("–", "-", agecat),
-                    levels = c("<5","5-14","15-44","45-64","65+"),
-                    ordered = TRUE)
-  )
-
-### --- Define reusable plotting function --- ###
-
-plot_virus <- function(virus_name) {
-  pd <- position_dodge(width = 0.8)
-  
-  ggplot(filter(sero_long, virus == virus_name),
-         aes(x = agecat, y = seroprev, fill = site)) +
-    geom_col(position = pd, width = 0.7) +
-    geom_errorbar(aes(ymin = low, ymax = high), position = pd, width = 0.2) +
-    geom_text(aes(label = sprintf("%.1f", seroprev)),
-              position = position_dodge(width = 0.8),
-              vjust = -0.6, size = 3) +
-    labs(
-      title = paste0("Age- and Site-Specific Crude Seroprevalence of ", virus_name),
-      x = "Age Group",
-      y = "Crude Seroprevalence (%)",
-      fill = "Site"
-    ) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-    theme_minimal(base_size = 13) +
-    theme(
-      legend.position = "top",
-      axis.text.x = element_text(angle = 30, hjust = 1),
-      plot.title = element_text(face = "bold", size = 15, hjust = 0.5)
-    )
-}
-
-### --- Generate individual virus plots --- ###
-
-plot_virus("CHIKV")
-plot_virus("DENV")
-plot_virus("RVFV")
-
-
-
-
-mrp_adjusted_region <- "
+mrp_model_region <- stan_model(model_code = "
 data {
   int N_se; // denominator sensitivity
   int N_sp; // denominator specificity
-  int x; // numerator sensitivity
-  int z; // numerator specificity
+  int x;    // numerator sensitivity
+  int z;    // numerator specificity
   int y[5, 2, 5]; // no. seropositives
   int n[5, 2, 5]; // no. samples
-  real pw[5, 2, 5]; // proportion of population in each demographic subgroup
-  real tot_pw_age[5]; // proportion of population in each age group
-  real tot_pw_sex[2]; // proportion female and male
-  real tot_pw_region[5]; // proportion of population in each region
+  real pw[5, 2, 5]; // proportion of population in each subgroup
+  real tot_pw_age[5];   // sum of weights by age
+  real tot_pw_sex[2];   // sum of weights by sex
+  real tot_pw_region[5];// sum of weights by region
 }
 
 parameters {
@@ -1502,266 +1543,70 @@ parameters {
 }
 
 transformed parameters {
-  real<lower=0,upper=1> p[5, 2, 5];
-  real<lower=0,upper=1> p_obs[5, 2, 5];
-  for(a in 1:5){
-    for(s in 1:2){
+  real<lower=0,upper=1> p[5,2,5];
+  real<lower=0,upper=1> p_obs[5,2,5];
+  for(a in 1:5)
+    for(s in 1:2)
       for(r in 1:5){
-        p[a, s, r] = inv_logit(bage[a] + bsex[s] + bregion[r]);
-        p_obs[a, s, r] = se * p[a, s, r] + (1 - sp) * (1 - p[a, s, r]);
+        p[a,s,r] = inv_logit(bage[a] + bsex[s] + bregion[r]);
+        p_obs[a,s,r] = se * p[a,s,r] + (1 - sp) * (1 - p[a,s,r]);
       }
-    }
-  }
-}
-
-model {
-  // priors
-  se ~ beta(1, 1);
-  sp ~ beta(1, 1);
-  bsex ~ normal(0, 10);
-  bage ~ normal(0, sd_age);
-  bregion ~ normal(0, sd_region);
-  sd_age ~ normal(0, 0.5);
-  sd_region ~ normal(0, 0.5);
-
-  // likelihood
-  for(a in 1:5){
-    for(s in 1:2){
-      for(r in 1:5){
-        y[a, s, r] ~ binomial(n[a, s, r], p_obs[a, s, r]);
-      }
-    }
-  }
-
-  x ~ binomial(N_se, se);
-  z ~ binomial(N_sp, sp);
-}
-
-generated quantities {
-  real p_national = 0;
-  vector[5] p_age = rep_vector(0, 5);
-  vector[2] p_sex = rep_vector(0, 2);
-  vector[5] p_region = rep_vector(0, 5); // fixed from vector[8]
-  
-  // National prevalence
-  for(a in 1:5){
-    for(s in 1:2){
-      for(r in 1:5){
-        p_national += p[a, s, r] * pw[a, s, r];
-      }
-    }
-  }
-
-  // Regional prevalence
-  for(r in 1:5){
-    for(a in 1:5){
-      for(s in 1:2){
-        p_region[r] += p[a, s, r] * pw[a, s, r] / tot_pw_region[r];
-      }
-    }
-  }
-
-  // Age-specific prevalence
-  for(a in 1:5){
-    for(s in 1:2){
-      for(r in 1:5){
-        p_age[a] += p[a, s, r] * pw[a, s, r] / tot_pw_age[a];
-      }
-    }
-  }
-
-  // Sex-specific prevalence
-  for(s in 1:2){
-    for(a in 1:5){
-      for(r in 1:5){
-        p_sex[s] += p[a, s, r] * pw[a, s, r] / tot_pw_sex[s];
-      }
-    }
-  }
-}
-"
-
-mrp_model_region <- stan_model(model_code = mrp_adjusted_region)
-
-
-
-fit_region <- sampling(
-  object = mrp_model_region,
-  data = list(
-    y = y,                       # [5, 2, 5] no. seropositives
-    n = n,                       # [5, 2, 5] no. tested
-    pw = pw,                     # [5, 2, 5] population weights
-    tot_pw_age = tot_pw_age,     # [5] total weight by age
-    tot_pw_sex = tot_pw_sex,     # [2] total weight by sex
-    tot_pw_region = tot_pw_region, # [5] total weight by region
-    x = 2,                       # numerator sensitivity
-    z = 139,                     # numerator specificity
-    N_se = 2,                    # denominator sensitivity
-    N_sp = 145                   # denominator specificity
-  ),
-  chains = 3,
-  warmup = 1000,
-  iter = 10000,
-  cores = 3,
-  seed = 111,
-  pars = c(
-    "bage", "bsex", "bregion",
-    "sd_age", "sd_region",
-    "p_age", "p_sex", "p_region",
-    "se", "sp"
-  ),
-  refresh = 500
-)
-
-
-
-
-library(dplyr)
-library(rstan)
-
-# -------------------------------
-# Step 1: Prepare arrays and totals
-# -------------------------------
-
-# Example: replace df_counts and df_pw with your own data
-# Assume 5 age groups, 2 sexes, 5 regions
-
-# y[a,s,r] = number of positives in age a, sex s, region r
-y <- array(df_counts$y, dim = c(5, 2, 5))
-
-# n[a,s,r] = total samples in age a, sex s, region r
-n <- array(df_counts$n, dim = c(5, 2, 5))
-
-# pw[a,s,r] = population proportion in each subgroup
-pw <- array(df_pw$pw, dim = c(5, 2, 5))
-
-# Totals for normalization
-tot_pw_age <- apply(pw, 1, sum)       # sum over sex and region
-tot_pw_sex <- apply(pw, 2, sum)       # sum over age and region
-tot_pw_region <- apply(pw, 3, sum)    # sum over age and sex
-
-# Sensitivity/Specificity data (replace with your own values)
-x <- 2      # numerator for sensitivity
-N_se <- 2   # denominator for sensitivity
-z <- 139    # numerator for specificity
-N_sp <- 145 # denominator for specificity
-
-# -------------------------------
-# Step 2: Define Stan model
-# -------------------------------
-
-mrp_adjusted_region <- "
-data {
-  int N_se; 
-  int N_sp; 
-  int x; 
-  int z; 
-  int y[5, 2, 5]; 
-  int n[5, 2, 5]; 
-  real pw[5, 2, 5]; 
-  real tot_pw_age[5]; 
-  real tot_pw_sex[2]; 
-  real tot_pw_region[5]; 
-}
-
-parameters {
-  real<lower=0,upper=1> se;
-  real<lower=0,upper=1> sp;
-  real bsex[2];
-  real bage[5];
-  real bregion[5];
-  real<lower=0> sd_age;
-  real<lower=0> sd_region;
-}
-
-transformed parameters {
-  real<lower=0,upper=1> p[5, 2, 5];
-  real<lower=0,upper=1> p_obs[5, 2, 5];
-  for(a in 1:5){
-    for(s in 1:2){
-      for(r in 1:5){
-        p[a, s, r] = inv_logit(bage[a] + bsex[s] + bregion[r]);
-        p_obs[a, s, r] = se * p[a, s, r] + (1 - sp) * (1 - p[a, s, r]);
-      }
-    }
-  }
 }
 
 model {
   // Priors
-  se ~ beta(1, 1);
-  sp ~ beta(1, 1);
-  bsex ~ normal(0, 10);
+  se ~ beta(89.2,9.8);
+  sp ~ beta(157.4,54);
+  bsex ~ normal(0, 5);
   bage ~ normal(0, sd_age);
   bregion ~ normal(0, sd_region);
-  sd_age ~ normal(0, 0.5);
-  sd_region ~ normal(0, 0.5);
+  sd_age ~ normal(0, 5);
+  sd_region ~ normal(0,10);
 
   // Likelihood
-  for(a in 1:5){
-    for(s in 1:2){
-      for(r in 1:5){
-        y[a, s, r] ~ binomial(n[a, s, r], p_obs[a, s, r]);
-      }
-    }
-  }
+  for(a in 1:5)
+    for(s in 1:2)
+      for(r in 1:5)
+        y[a,s,r] ~ binomial(n[a,s,r], p_obs[a,s,r]);
 
   x ~ binomial(N_se, se);
   z ~ binomial(N_sp, sp);
 }
 
 generated quantities {
-  real p_national = 0;
+  real p_overall = 0;
   vector[5] p_age = rep_vector(0, 5);
   vector[2] p_sex = rep_vector(0, 2);
   vector[5] p_region = rep_vector(0, 5);
 
-  // National prevalence
-  for(a in 1:5){
-    for(s in 1:2){
-      for(r in 1:5){
-        p_national += p[a, s, r] * pw[a, s, r];
-      }
-    }
-  }
+  // overall prevalence
+  for(a in 1:5)
+    for(s in 1:2)
+      for(r in 1:5)
+        p_overall += p[a,s,r] * pw[a,s,r];
 
   // Regional prevalence
-  for(r in 1:5){
-    for(a in 1:5){
-      for(s in 1:2){
-        p_region[r] += p[a, s, r] * pw[a, s, r] / tot_pw_region[r];
-      }
-    }
-  }
+  for(r in 1:5)
+    for(a in 1:5)
+      for(s in 1:2)
+        p_region[r] += p[a,s,r] * pw[a,s,r] / tot_pw_region[r];
 
   // Age-specific prevalence
-  for(a in 1:5){
-    for(s in 1:2){
-      for(r in 1:5){
-        p_age[a] += p[a, s, r] * pw[a, s, r] / tot_pw_age[a];
-      }
-    }
-  }
+  for(a in 1:5)
+    for(s in 1:2)
+      for(r in 1:5)
+        p_age[a] += p[a,s,r] * pw[a,s,r] / tot_pw_age[a];
 
   // Sex-specific prevalence
-  for(s in 1:2){
-    for(a in 1:5){
-      for(r in 1:5){
-        p_sex[s] += p[a, s, r] * pw[a, s, r] / tot_pw_sex[s];
-      }
-    }
-  }
+  for(s in 1:2)
+    for(a in 1:5)
+      for(r in 1:5)
+        p_sex[s] += p[a,s,r] * pw[a,s,r] / tot_pw_sex[s];
 }
-"
+")
 
-# -------------------------------
-# Step 3: Compile and run model
-# -------------------------------
-
-mrp_model <- stan_model(model_code = mrp_adjusted_region)
-
-fit <- sampling(
-  object = mrp_model,
+fit_region <- sampling(
+  object = mrp_model_region,
   data = list(
     y = y,
     n = n,
@@ -1769,23 +1614,25 @@ fit <- sampling(
     tot_pw_age = tot_pw_age,
     tot_pw_sex = tot_pw_sex,
     tot_pw_region = tot_pw_region,
-    x = x,
-    z = z,
-    N_se = N_se,
-    N_sp = N_sp
+    x = 74,
+    z = 67,  
+    N_se = 82, 
+    N_sp = 90 
   ),
-  chains = 3,
+  chains = 1,
   warmup = 1000,
   iter = 10000,
   cores = 3,
   seed = 111,
-  pars = c("bage","bsex","bregion","sd_age","sd_region","p_age","p_sex","p_region","p_national","se","sp"),
-  refresh = 0
+  pars = c(
+    "p_overall", "se", "sp"
+   
+  ),
+  refresh = 500
 )
 
-# -------------------------------
-# Step 4: Inspect results
-# -------------------------------
-print(fit, digits=3)
 
+
+print(fit_region, digits=3)
+ 
 
