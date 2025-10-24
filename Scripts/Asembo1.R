@@ -267,7 +267,7 @@ asembodata <- asembodata %>%
 asembodata$sex<-as.character(asembodata$sex)
 
 asembo_chik <-SeroData(age_at_sampling = asembodata$ageyrs,
-                       Y= asembodata$DENpos,
+                       Y= asembodata$CHKpos,
                        sampling_year = 2022)
 seroprevalence(asembo_chik)
 seroprevalence.plot(asembo_chik, age_class = 5)
