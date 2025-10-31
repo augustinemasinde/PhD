@@ -249,14 +249,10 @@ exp(confint(sex_RVF))
 
 
 
-
-
-#fit the model age-dependent force of infection using rsero package
-#estimating site specific force of infection using rsero
+#Asembo
 asembodata<- Asembodata %>%
   select(ageyrs,sex,age_cat,CHKpos, DENpos, RVFpos)
   
-#recode the IgM_CHIK variable, Positive to TRUE , Negative to FALSE
 asembodata$RVFpos <- ifelse(asembodata$RVFpos == 1, TRUE, FALSE)
 asembodata$DENpos <- ifelse(asembodata$DENpos == 1, TRUE, FALSE)
 asembodata$CHKpos <- ifelse(asembodata$CHKpos == 1, TRUE, FALSE)
@@ -271,34 +267,26 @@ asembo_chik <-SeroData(age_at_sampling = asembodata$ageyrs,
                        sampling_year = 2022)
 seroprevalence(asembo_chik)
 seroprevalence.plot(asembo_chik, age_class = 5)
-#fit the model constant model
-piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.6, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(5,50), priorT2 = c(15,70), se = 0.93, sp=0.902)
+
+piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.2, priorC2 = 1,age_dependent_foi = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 1, K=2, priorT1 = c(5,65), priorT2 = c(5,5))
+print(piecewisemodel)
+
+piecewisemodel = fit(data = asembo_chik,  model = piecewisemodel, chains=1, iter=5000)
 
 
-piecewise = fit(data = asembo_chik,  model = piecewisemodel, chains=1, iter=5000)
-
-
-seroprevalence.fit(piecewise, YLIM = 1, age_class = 5)
-
-
-#Plotting the posterior distributions
-plot_posterior(piecewise)
-
-#Posterior distribution of relevant model parameters
-parameters_credible_intervals(piecewise)
-traceplot_Rsero(piecewise)
+seroprevalence.fit(piecewisemodel, YLIM = 1, age_class = 5)
+plot(piecewisemodel, YLIM =1)
+plot_posterior(piecewisemodel)
+parameters_credible_intervals(piecewisemodel)
+traceplot_Rsero(piecewisemodel)
 
 
 
 
 
 #manyatta
-#fit the model age-dependent force of infection using rsero package
-#estimating site specific force of infection using rsero
 manyattadata<- manyattadata_clean %>%
   select(ageyrs,sex,age_cat,CHKpos, DENpos, RVFpos)
-
-#recode the IgM_CHIK variable, Positive to TRUE , Negative to FALSE
 manyattadata$RVFpos <- ifelse(manyattadata$RVFpos == 1, TRUE, FALSE)
 manyattadata$DENpos <- ifelse(manyattadata$DENpos == 1, TRUE, FALSE)
 manyattadata$CHKpos <- ifelse(manyattadata$CHKpos == 1, TRUE, FALSE)
@@ -310,36 +298,34 @@ manyattadata$sex<-as.character(manyattadata$sex)
 
 manyatta_chik <-SeroData(age_at_sampling = manyattadata$ageyrs,
                        Y= manyattadata$CHKpos,
-                       age_class = 5,
-                       #category = manyattadata$sex,
-                       #reference.category = "M",
                        sampling_year = 2022)
 seroprevalence(manyatta_chik)
 seroprevalence.plot(manyatta_chik, age_class = 5)
 #fit the model constant model
-manyattapiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.2, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(25,50), priorT2 = c(35,70))
-
+manyattapiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0., priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 1, K=2, priorT1 = c(30,55), priorT2 = c(5,5))
+print(manyattapiecewisemodel)
 
 manyattapiecewisemodel = fit(data = manyatta_chik,  model = manyattapiecewisemodel, chains=1, iter=5000)
+
 seroprevalence.fit(manyattapiecewisemodel, YLIM=1, age_class = 5)
 
-#Plotting the posterior distributions
+
 plot_posterior(manyattapiecewisemodel)
 
 #Posterior distribution of relevant model parameters
-parameters_credible_intervals(manyattapiecewisemodel)
+
 traceplot_Rsero(manyattapiecewisemodel)
+plot(manyattapiecewisemodel, YLIM =1)
 
 
+parameters_credible_intervals(manyattapiecewisemodel)
 
 
 #kilifi
-#fit the model age-dependent force of infection using rsero package
-#estimating site specific force of infection using rsero
 kilifidata<- Kilifidata_clean %>%
   select(ageyrs,sex,age_cat,CHKpos, DENpos, RVFpos)
 
-#recode the IgM_CHIK variable, Positive to TRUE , Negative to FALSE
+
 kilifidata$RVFpos <- ifelse(kilifidata$RVFpos == 1, TRUE, FALSE)
 kilifidata$DENpos <- ifelse(kilifidata$DENpos == 1, TRUE, FALSE)
 kilifidata$CHKpos <- ifelse(kilifidata$CHKpos == 1, TRUE, FALSE)
@@ -350,30 +336,24 @@ kilifidata <- kilifidata %>%
 kilifidata$sex<-as.character(kilifidata$sex)
 
 kilifidata_chik <-SeroData(age_at_sampling = kilifidata$ageyrs,
-                         Y= kilifidata$CHKpos,
-                         #category = kilifidata$sex,
-                         #reference.category = "M",
+                         Y= kilifidata$RVFpos,
                          sampling_year = 2022)
 seroprevalence(kilifidata_chik)
 seroprevalence.plot(kilifidata_chik, age_class = 5)
 #fit the model constant model
-ConstantModel = FOImodel(type = 'constant', priorC1 = 0.02, priorC2 = 1, seroreversion = 1, priorRho2 = .2, priorRho1 = 0)
-FOIfit.constant = fit(data = kilifidata_chik,  model = ConstantModel, chains=1, iter=5000)
-seroprevalence.fit(FOIfit.constant,age_class = 5)
+kilifipiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.02, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(15,40), priorT2 = c(5,5))
+kilifipiecewisemodel = fit(data = kilifidata_chik,  model = kilifipiecewisemodel, chains=3, iter=5000)
+seroprevalence.fit(kilifipiecewisemodel,age_class = 5)
 
 #Posterior distribution of relevant model parameters
-parameters_credible_intervals(FOIfit.constant)
-
+parameters_credible_intervals(kilifipiecewisemodel)
+plot(kilifipiecewisemodel, YLIM =1)
 
 
 
 #kibera
-#fit the model age-dependent force of infection using rsero package
-#estimating site specific force of infection using rsero
 kiberadata<- Kiberadata_clean %>%
   select(ageyrs,sex,age_cat,CHKpos, DENpos, RVFpos)
-
-#recode the IgM_CHIK variable, Positive to TRUE , Negative to FALSE
 kiberadata$RVFpos <- ifelse(kiberadata$RVFpos == 1, TRUE, FALSE)
 kiberadata$DENpos <- ifelse(kiberadata$DENpos == 1, TRUE, FALSE)
 kiberadata$CHKpos <- ifelse(kiberadata$CHKpos == 1, TRUE, FALSE)
@@ -384,28 +364,24 @@ kiberadata <- kiberadata %>%
 kiberadata$sex<-as.character(kiberadata$sex)
 
 kiberadata_chik <-SeroData(age_at_sampling = kiberadata$ageyrs,
-                           Y= kiberadata$CHKpos,
-                           #category = kiberadata$sex,
-                           #reference.category = "M",
+                           Y= kiberadata$RVFpos,
                            sampling_year = 2022)
 seroprevalence(kiberadata_chik)
 seroprevalence.plot(kiberadata_chik, age_class = 5)
-#fit the model constant model
-ConstantModel = FOImodel(type = 'constant', priorC1 = 0.01, priorC2 = 1, seroreversion = 1, priorRho2 = .2, priorRho1 = 0)
-FOIfit.constant = fit(data = kiberadata_chik,  model = ConstantModel, chains=1, iter=5000)
-seroprevalence.fit(FOIfit.constant, YLIM= 1, age_class = 5)
 
-#Posterior distribution of relevant model parameters
-parameters_credible_intervals(FOIfit.constant)
+kiberapiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.3, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(5,50), priorT2 = c(5,5))
+kiberapiecewisemodel = fit(data = kiberadata_chik,  model = kiberapiecewisemodel, chains=3, iter=5000)
+seroprevalence.fit(kiberapiecewisemodel, YLIM= 1, age_class = 5)
+
+parameters_credible_intervals(kiberapiecewisemodel)
+
+plot(kiberapiecewisemodel, YLIM =1)
 
 #Nairobi Urban
-#kibera
-#fit the model age-dependent force of infection using rsero package
-#estimating site specific force of infection using rsero
+
 Nairobidata<- Nairobi_clean %>%
   select(ageyrs,sex,age_cat,CHKpos, DENpos, RVFpos)
 
-#recode the IgM_CHIK variable, Positive to TRUE , Negative to FALSE
 Nairobidata$RVFpos <- ifelse(Nairobidata$RVFpos == 1, TRUE, FALSE)
 Nairobidata$DENpos <- ifelse(Nairobidata$DENpos == 1, TRUE, FALSE)
 Nairobidata$CHKpos <- ifelse(Nairobidata$CHKpos == 1, TRUE, FALSE)
@@ -416,20 +392,18 @@ Nairobidata <- Nairobidata %>%
 Nairobidata$sex<-as.character(Nairobidata$sex)
 
 Nairobidata_chik <-SeroData(age_at_sampling = Nairobidata$ageyrs,
-                           Y= Nairobidata$CHKpos,
-                           #category = kiberadata$sex,
-                           #reference.category = "M",
+                           Y= Nairobidata$RVFpos,
                            sampling_year = 2022)
 seroprevalence(Nairobidata_chik)
 seroprevalence.plot(Nairobidata_chik, age_class = 5)
-#fit the model constant model
-ConstantModel = FOImodel(type = 'piecewise', K=2, priorC1 = 0.2, priorC2 = 1)
-FOIfit.constant = fit(data = Nairobidata_chik,  model = ConstantModel, chains=1, iter=5000)
-seroprevalence.fit(FOIfit.constant, YLIM=1, age_class = 5)
 
-#Posterior distribution of relevant model parameters
-parameters_credible_intervals(FOIfit.constant)
+nairobipiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.01, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(20,40), priorT2 = c(5,5))
+nairobipiecewisemodel = fit(data = Nairobidata_chik,  model = nairobipiecewisemodel, chains=3, iter=5000)
+seroprevalence.fit(nairobipiecewisemodel, YLIM=1, age_class = 5)
 
+
+parameters_credible_intervals(nairobipiecewisemodel)
+plot(nairobipiecewisemodel, YLIM =1)
 
 
 
@@ -1635,4 +1609,107 @@ fit_region <- sampling(
 
 print(fit_region, digits=3)
  
+
+
+
+#tableby()
+df_all$site<- as.factor(df_all$site)
+df_all$sex<- as.factor(df_all$sex)
+df_all$age_group<- as.factor(df_all$age_group)
+df_all$CHKpos<- as.factor(df_all$CHKpos)
+df_all$DENpos<- as.factor(df_all$DENpos)
+df_all$RVFpos<- as.factor(df_all$RVFpos)
+
+df_all$age_group <- relevel(factor(df_all$age_group, ordered = FALSE), ref = "<5")
+df_all$site <- relevel(factor(df_all$site), ref = "NAIROBI")
+
+# Run logistic regression again
+tab1 <- glm(RVFpos ~ age_group + sex + site, family = binomial, data = df_all)
+
+# View summary
+summary(tab1)
+
+# Optional: get adjusted odds ratios and 95% CIs
+exp(cbind(OR = coef(tab1), confint(tab1)))
+
+
+
+tab<- tableby(data = df_all, CHKpos ~ site + sex + age_group)
+summary(tab, text = TRUE)
+
+tab1<-glm(RVFpos ~ age_group + sex + site, family = binomial, data = df_all)
+summary(tab1)
+exp(cbind(OR = coef(tab1), confint(tab1)))
+
+
+# Crude  ORs
+tab_crude_site <- glm(RVFpos ~ site, family = binomial, data = df_all)
+exp(cbind(OR = coef(tab_crude_site), confint(tab_crude_site)))
+summary(tab_crude_site)
+
+# Crude OR for sex
+tab_crude_sex <- glm(DENpos ~ sex, family = binomial, data = df_all)
+exp(cbind(OR = coef(tab_crude_sex), confint(tab_crude_sex)))
+summary(tab_crude_sex)
+# Crude OR for age group
+tab_crude_age <- glm(DENpos ~ age_group, family = binomial, data = df_all)
+exp(cbind(OR = coef(tab_crude_age), confint(tab_crude_age)))
+summary(tab_crude_age)
+
+
+
+
+# Fit the full model for RVFpos
+full_model_rvf <- glm(RVFpos ~ site + age_group + sex, family = binomial, data = df_all)
+# Extract ORs and 95% CIs
+OR <- exp(coef(full_model_rvf))
+CI <- exp(confint(full_model_rvf))
+
+forest_data <- data.frame(
+  predictor = names(OR),
+  OR = OR,
+  lower = CI[,1],
+  upper = CI[,2]
+)
+
+# Remove intercept and any rows with NA
+forest_data <- forest_data %>%
+  filter(predictor != "(Intercept)" & !is.na(OR) & !is.na(lower) & !is.na(upper))
+
+# Add significance
+forest_data$significant <- ifelse(summary(full_model_rvf)$coefficients[forest_data$predictor,4] < 0.05, "yes", "no")
+
+# Create a grouping variable
+forest_data <- forest_data %>%
+  mutate(group = case_when(
+    grepl("^site", predictor) ~ "Site",
+    grepl("^age", predictor) ~ "Age group",
+    grepl("^sex", predictor) ~ "Sex"
+  ))
+
+# Order predictors within each group
+age_levels <- grep("^age", forest_data$predictor, value = TRUE)
+age_levels <- age_levels[order(as.numeric(gsub(".*?(\\d+).*", "\\1", age_levels)))]
+site_levels <- grep("^site", forest_data$predictor, value = TRUE)
+sex_levels <- grep("^sex", forest_data$predictor, value = TRUE)
+
+forest_data$predictor <- factor(forest_data$predictor,
+                                levels = c(age_levels, site_levels, sex_levels))
+
+# Nice x-axis breaks
+max_val <- ceiling(max(forest_data$upper, na.rm = TRUE))
+min_val <- floor(min(forest_data$lower, na.rm = TRUE))
+x_breaks <- pretty(c(min_val, max_val), n = 6)
+
+# Plot
+ggplot(forest_data, aes(x = OR, y = predictor, color = significant)) +
+  geom_point(size = 3) +
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = x_breaks) +
+  xlab("Odds Ratio") +
+  ylab("Predictor") +
+  ggtitle("Forest Plot of RVFpos") +
+  theme_minimal() +
+  facet_grid(group ~ ., scales = "free_y", space = "free")
 
