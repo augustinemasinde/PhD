@@ -268,14 +268,14 @@ asembo_chik <-SeroData(age_at_sampling = asembodata$ageyrs,
 seroprevalence(asembo_chik)
 seroprevalence.plot(asembo_chik, age_class = 5)
 
-piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.2, priorC2 = 1,age_dependent_foi = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 1, K=2, priorT1 = c(5,65), priorT2 = c(5,5))
+piecewisemodel = FOImodel(type = 'outbreak', prioralpha1 = 0.5, prioralpha2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1, K=1, priorT1 = 10, priorT2 = 10)
 print(piecewisemodel)
 
 piecewisemodel = fit(data = asembo_chik,  model = piecewisemodel, chains=1, iter=5000)
 
 
 seroprevalence.fit(piecewisemodel, YLIM = 1, age_class = 5)
-plot(piecewisemodel, YLIM =1)
+plot(piecewisemodel, YLIM =2)
 plot_posterior(piecewisemodel)
 parameters_credible_intervals(piecewisemodel)
 traceplot_Rsero(piecewisemodel)
@@ -302,7 +302,7 @@ manyatta_chik <-SeroData(age_at_sampling = manyattadata$ageyrs,
 seroprevalence(manyatta_chik)
 seroprevalence.plot(manyatta_chik, age_class = 5)
 #fit the model constant model
-manyattapiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0., priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 1, K=2, priorT1 = c(30,55), priorT2 = c(5,5))
+manyattapiecewisemodel = FOImodel(type = 'constant', priorC1 = 0.02, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1)
 print(manyattapiecewisemodel)
 
 manyattapiecewisemodel = fit(data = manyatta_chik,  model = manyattapiecewisemodel, chains=1, iter=5000)
@@ -336,17 +336,18 @@ kilifidata <- kilifidata %>%
 kilifidata$sex<-as.character(kilifidata$sex)
 
 kilifidata_chik <-SeroData(age_at_sampling = kilifidata$ageyrs,
-                         Y= kilifidata$RVFpos,
+                         Y= kilifidata$CHKpos,
                          sampling_year = 2022)
 seroprevalence(kilifidata_chik)
 seroprevalence.plot(kilifidata_chik, age_class = 5)
 #fit the model constant model
-kilifipiecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.02, priorC2 = 1, seroreversion = 1, priorRho1 = 0.06, priorRho2 = 0, K=2, priorT1 = c(15,40), priorT2 = c(5,5))
-kilifipiecewisemodel = fit(data = kilifidata_chik,  model = kilifipiecewisemodel, chains=3, iter=5000)
+kilifipiecewisemodel = FOImodel(type = 'constant', priorC1 = 0.02,  priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 0.5)
+kilifipiecewisemodel = fit(data = kilifidata_chik,  model = kilifipiecewisemodel, chains=1, iter=5000)
 seroprevalence.fit(kilifipiecewisemodel,age_class = 5)
 
 #Posterior distribution of relevant model parameters
 parameters_credible_intervals(kilifipiecewisemodel)
+
 plot(kilifipiecewisemodel, YLIM =1)
 
 
