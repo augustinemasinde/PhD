@@ -4,6 +4,7 @@ library(arsenal)
 library(Rsero)
 library(readxl)
 library(rstan)
+library(logistf)
 
 # Robust data loader: update data_dir to where your .dta files live (or use here::here("..."))
 data_dir <- "/Users/augustinemasinde/Desktop/PhD files/Global Health"  # <- update if needed
@@ -46,98 +47,112 @@ table(Kiberadata$sex)
 table(NairobiUrbandata$sex)
 
 
-Asembodata<- Asembodata %>% 
-  mutate(age_cat = case_when(
-    ageyrs < 5 ~ "<5",
-    ageyrs >= 5 & ageyrs < 18 ~ "5-17",
-    ageyrs >= 18 & ageyrs < 46 ~ "18-45",
-    ageyrs >= 46 & ageyrs <65 ~ "46-64",
-    ageyrs >= 65 ~ "65+"
+nairobi_data <-Nairobi_clean %>%
+  mutate(agecat = case_when(
+    ageyrs >= 0 & ageyrs < 5 ~ "<5",
+    ageyrs >= 5 & ageyrs <15 ~ "5-14",
+    ageyrs >= 15 & ageyrs <45 ~ "15-44",
+    ageyrs >= 45 & ageyrs <65 ~ "45-64",
+    ageyrs >= 65 ~ "65+",
+    TRUE ~ NA_character_
   ))
-Asembodata$age_cat <- factor(
-  Asembodata$age_cat,
-  levels = c("<5", "5-17", "18-45", "46-64", "65+"),
+
+
+Asembodata<- Asembodata %>% 
+  mutate(agecat = case_when(
+    ageyrs >= 0 & ageyrs < 5 ~ "<5",
+    ageyrs >= 5 & ageyrs <15 ~ "5-14",
+    ageyrs >= 15 & ageyrs <45 ~ "15-44",
+    ageyrs >= 45 & ageyrs <65 ~ "45-64",
+    ageyrs >= 65 ~ "65+",
+    TRUE ~ NA_character_
+  ))
+Asembodata$agecat <- factor(
+  Asembodata$agecat,
+  levels = c("<5", "5-14", "15-44", "45-64", "65+"),
   ordered = TRUE
 )
 
-table(Asembodata$age_cat)
+table(Asembodata$agecat)
 
 manyattadata<- manyattadata %>% 
-  mutate(age_cat = case_when(
-    ageyrs < 5 ~ "<5",
-    ageyrs >= 5 & ageyrs <18 ~ "5-17",
-    ageyrs >= 18 & ageyrs < 46 ~ "18-45",
-    ageyrs >= 46 & ageyrs <65 ~ "46-64",
-    ageyrs >= 65 ~ "65+"
+  mutate(agecat = case_when(
+    ageyrs >= 0 & ageyrs < 5 ~ "<5",
+    ageyrs >= 5 & ageyrs <15 ~ "5-14",
+    ageyrs >= 15 & ageyrs <45 ~ "15-44",
+    ageyrs >= 45 & ageyrs <65 ~ "45-64",
+    ageyrs >= 65 ~ "65+",
+    TRUE ~ NA_character_
   ))
-manyattadata$age_cat <- factor(
-  manyattadata$age_cat,
-  levels = c("<5", "5-17", "18-45", "46-64", "65+"),
+manyattadata$agecat <- factor(
+  manyattadata$agecat,
+  levels = c("<5", "5-14", "15-44", "45-64", "65+"),
   ordered = TRUE
 )
 
-table(manyattadata$age_cat)
+table(manyattadata$agecat)
 
 Kilifidata<- Kilifidata %>% 
-  mutate(age_cat = case_when(
-    age_y<5 ~ "<5",
-    age_y >= 5 & age_y < 18 ~ "5-17",
-    age_y >= 18 & age_y < 46 ~ "18-45",
-    age_y >= 46 & age_y < 65 ~ "46-64",
-    age_y >= 65 ~ "65+"
+  mutate(agecat = case_when(
+    age_y >= 0 & age_y < 5 ~ "<5",
+    age_y >= 5 & age_y <15 ~ "5-14",
+    age_y >= 15 & age_y <45 ~ "15-44",
+    age_y >= 45 & age_y <65 ~ "45-64",
+    age_y >= 65 ~ "65+",
+    TRUE ~ NA_character_
     
   ))
-Kilifidata$age_cat <- factor(
-  Kilifidata$age_cat,
-  levels = c("<5", "5-17", "18-45", "46-64", "65+"),
+Kilifidata$agecat <- factor(
+  Kilifidata$agecat,
+  levels = c("<5", "5-14", "15-44", "45-64", "65+"),
   ordered = TRUE
 )
-table(Kilifidata$age_cat)
+table(Kilifidata$agecat)
 
 
 Kiberadata<- Kiberadata %>%
-  mutate(age_cat = case_when(
-    ageyrs < 5 ~ "<5",
-    ageyrs >= 5 & ageyrs < 18 ~ "5-17",
-    ageyrs >= 18 & ageyrs < 46 ~ "18-45",
-    ageyrs >= 46 & ageyrs <65 ~ "46-64",
-    ageyrs >= 65 ~ "65+"
+  mutate(agecat = case_when(
+    ageyrs >= 0 & ageyrs < 5 ~ "<5",
+    ageyrs >= 5 & ageyrs <15 ~ "5-14",
+    ageyrs >= 15 & ageyrs <45 ~ "15-44",
+    ageyrs >= 45 & ageyrs <65 ~ "45-64",
+    ageyrs >= 65 ~ "65+",
+    TRUE ~ NA_character_
   ))
 
-Kiberadata$age_cat <- factor(
-  Kiberadata$age_cat,
-  levels = c("<5", "5-17", "18-45", "46-64", "65+"),
+Kiberadata$agecat <- factor(
+  Kiberadata$agecat,
+  levels = c("<5", "5-14", "15-44", "45-64", "65+"),
   ordered = TRUE
 )
-table(Kiberadata$age_cat)
+table(Kiberadata$agecat)
 
 NairobiUrbandata<- NairobiUrbandata %>%
-  mutate(age_cat = case_when(
-    age_y < 5 ~ "<5",
-    age_y >= 5 & age_y < 18 ~ "5-17",
-    age_y >= 18 & age_y < 46 ~ "18-45",
-    age_y >= 46 & age_y < 65 ~ "46-64",
-    age_y >= 65 ~ "65+"
+  mutate(agecat = case_when(
+    age_y >= 0 & age_y < 5 ~ "<5",
+    age_y >= 5 & age_y <15 ~ "5-14",
+    age_y >= 15 & age_y <45 ~ "15-44",
+    age_y >= 45 & age_y <65 ~ "45-64",
+    age_y >= 65 ~ "65+",
+    TRUE ~ NA_character_
   ))
-NairobiUrbandata$age_cat <- factor(
-  NairobiUrbandata$age_cat,
-  levels = c("<5", "5-17", "18-45", "46-64", "65+"),
+NairobiUrbandata$agecat <- factor(
+  NairobiUrbandata$agecat,
+  levels = c("<5", "5-14", "15-44", "45-64", "65+"),
   ordered = TRUE
 )
-table(NairobiUrbandata$age_cat)
+table(NairobiUrbandata$agecat)
 
 
 library(dplyr)
 
 # Asembo
 Asembodata_clean <- Asembodata %>%
-  select(site, sex, ageyrs, age_cat, CHKpos, DENpos, RVFpos) %>%
-  mutate(across(c(CHKpos, DENpos, RVFpos), ~ as.numeric(as.character(.))))
+  select(site, sex, ageyrs, agecat, CHKpos, DENpos, RVFpos) 
 
 # Manyatta
 manyattadata_clean <- manyattadata %>%
-  select(site, sex, ageyrs, age_cat, CHKpos, DENpos, RVFpos) %>%
-  mutate(across(c(CHKpos, DENpos, RVFpos), ~ as.numeric(as.character(.))))
+  select(site, sex, ageyrs, agecat, CHKpos, DENpos, RVFpos)
 
 # Kilifi
 Kilifidata_clean <- Kilifidata %>%
@@ -146,16 +161,14 @@ Kilifidata_clean <- Kilifidata %>%
          DENpos = denv_pos,
          RVFpos = rvfgc_pos,
          site = location) %>%
-  select(site, sex, ageyrs, age_cat, CHKpos, DENpos, RVFpos) %>%
-  mutate(across(c(CHKpos, DENpos, RVFpos), ~ as.numeric(as.character(.))))
+  select(site, sex, ageyrs, agecat, CHKpos, DENpos, RVFpos) 
 
 # Kibera
 Kiberadata_clean <- Kiberadata %>%
   rename(CHKpos = chke1_pos,
          DENpos = denv_pos,
          RVFpos = rvfgc_pos) %>%
-  select(site, sex, ageyrs, age_cat, CHKpos, DENpos, RVFpos) %>%
-  mutate(across(c(CHKpos, DENpos, RVFpos), ~ as.numeric(as.character(.))))
+  select(site, sex, ageyrs, agecat, CHKpos, DENpos, RVFpos)
 
 # Nairobi Urban
 Nairobi_clean <- NairobiUrbandata %>%
@@ -164,8 +177,138 @@ Nairobi_clean <- NairobiUrbandata %>%
          DENpos = denv_pos,
          RVFpos = rvfgc_pos,
          site = location) %>%
-  select(site, sex, ageyrs, age_cat, CHKpos, DENpos, RVFpos) %>%
-  mutate(across(c(CHKpos, DENpos, RVFpos), ~ as.numeric(as.character(.))))
+  select(site, sex, ageyrs, agecat, CHKpos, DENpos, RVFpos)
+
+
+Nairobi_clean$agecat2 <- as.character(Nairobi_clean$agecat)
+Nairobi_clean$agecat2[Nairobi_clean$agecat2 %in% c("<5", "5-14")] <- "<15"
+Nairobi_clean$agecat2 <- factor(
+  Nairobi_clean$agecat2,
+  levels = c("<15", "15-44", "45-64", "65+")
+)
+Nairobi_clean$agegroup <- cut(
+  Nairobi_clean$ageyrs,
+  breaks = c(-Inf, 24, 44, Inf),
+  labels = c("<25", "26-44", "45+"),
+  right = TRUE
+)
+
+Kiberadata_clean$agecat2 <- as.character(Kiberadata_clean$agecat)
+Kiberadata_clean$agecat2[Kiberadata_clean$agecat2 %in% c("<5", "5-14")] <- "<15"
+Kiberadata_clean$agecat2 <- factor(
+  Kiberadata_clean$agecat2,
+  levels = c("<15", "15-44", "45-64", "65+")
+)
+
+
+Kiberadata_clean$agegroup <- cut(
+  Kiberadata_clean$ageyrs,
+  breaks = c(-Inf, 24, 44, Inf),
+  labels = c("<25", "26-44", "45+"),
+  right = TRUE
+)
+#kilifi
+Kilifidata_clean$agegroup <- cut(
+  Kilifidata_clean$ageyrs,
+  breaks = c(-Inf, 24, 44, Inf),
+  labels = c("<25", "26-44", "45+"),
+  right = TRUE
+)
+
+#Manyatta
+manyattadata_clean$agegroup <- cut(
+  manyattadata_clean$ageyrs,
+  breaks = c(-Inf, 24, 44, Inf),
+  labels = c("<25", "26-44", "45+"),
+  right = TRUE
+)
+
+#ASEMBO
+Asembodata_clean$agegroup <- cut(
+  Asembodata_clean$ageyrs,
+  breaks = c(-Inf, 24, 44, Inf),
+  labels = c("<25", "26-44", "45+"),
+  right = TRUE
+)
+
+Asembodata_clean$agegroup2 <- cut(
+  Asembodata_clean$ageyrs,
+  breaks = c(-Inf, 44, Inf),
+  labels = c("<45", "45+"),
+  right = TRUE
+)
+
+
+
+
+
+Nairobi_clean$agegroup <- factor(Nairobi_clean$agegroup, ordered = FALSE)
+Nairobi_clean$sex<-as.factor(Nairobi_clean$sex)
+Nairobi_clean$CHKpos<-as.factor(Nairobi_clean$CHKpos)
+Nairobi_clean$DENpos<-as.factor(Nairobi_clean$DENpos)
+Nairobi_clean$RVFpos<-as.factor(Nairobi_clean$RVFpos)
+Nairobi_clean$agecat2 <- factor(Nairobi_clean$agecat2, ordered = FALSE)
+#Asembo
+Asembodata_clean$sex<-as.factor(Asembodata_clean$sex)
+Asembodata_clean$agegroup2<-as.factor(Asembodata_clean$agegroup2)
+Asembodata_clean$agegroup<-as.factor(Asembodata_clean$agegroup)
+Asembodata_clean$agecat<-as.factor(Asembodata_clean$agecat)
+Asembodata_clean$CHKpos<-as.factor(Asembodata_clean$CHKpos)
+Asembodata_clean$DENpos<-as.factor(Asembodata_clean$DENpos)
+Asembodata_clean$RVFpos<-as.factor(Asembodata_clean$RVFpos)
+Asembodata_clean$agecat <- factor(Asembodata_clean$agecat, ordered = FALSE)
+#Manyatta
+manyattadata_clean$sex<-as.factor(manyattadata_clean$sex)
+manyattadata_clean$agegroup<-as.factor(manyattadata_clean$agegroup)
+manyattadata_clean$agecat<-as.factor(manyattadata_clean$agecat)
+manyattadata_clean$CHKpos<-as.factor(manyattadata_clean$CHKpos)
+manyattadata_clean$DENpos<-as.factor(manyattadata_clean$DENpos)
+manyattadata_clean$RVFpos<-as.factor(manyattadata_clean$RVFpos)
+manyattadata_clean$agecat <- factor(manyattadata_clean$agecat, ordered = FALSE)
+#Kilifi
+Kilifidata_clean$sex<-as.factor(Kilifidata_clean$sex)
+Kilifidata_clean$agegroup<-as.factor(Kilifidata_clean$agegroup)
+Kilifidata_clean$CHKpos<-as.factor(Kilifidata_clean$CHKpos)
+Kilifidata_clean$DENpos<-as.factor(Kilifidata_clean$DENpos)
+Kilifidata_clean$RVFpos<-as.factor(Kilifidata_clean$RVFpos)
+Kilifidata_clean$agecat <- factor(Kilifidata_clean$agecat, ordered = FALSE)
+#Kibera
+Kiberadata_clean$agegroup<- as.factor(Kiberadata_clean$agegroup)
+Kiberadata_clean$sex<-as.factor(Kiberadata_clean$sex)
+Kiberadata_clean$agecat<-as.factor(Kiberadata_clean$agecat)
+Kiberadata_clean$CHKpos<-as.factor(Kiberadata_clean$CHKpos)
+Kiberadata_clean$DENpos<-as.factor(Kiberadata_clean$DENpos)
+Kiberadata_clean$RVFpos<-as.factor(Kiberadata_clean$RVFpos)
+Kiberadata_clean$agecat <- factor(Kiberadata_clean$agecat, ordered = FALSE)
+
+#reference category for sex
+Asembodata_clean$sex<- relevel(Asembodata_clean$sex, ref = "M")
+Nairobi_clean$sex <- relevel(Nairobi_clean$sex, ref = "Male")
+manyattadata_clean$sex <- relevel(manyattadata_clean$sex, ref = "M")
+Kilifidata_clean$sex <- relevel(Kilifidata_clean$sex, ref = "m")
+Kiberadata_clean$sex <- relevel(Kiberadata_clean$sex, ref = "M")
+
+#Bivariate analysis for Nairobi
+
+model0<- glm(DENpos ~ 1, data = Asembodata_clean, family = binomial) #null model
+model1<- glm(DENpos  ~ agegroup2, data = Asembodata_clean, family = binomial) # model with one variable
+model2<- glm(DENpos  ~ sex + agegroup2, data = Asembodata_clean, family = binomial) #full model
+summary(model2)
+
+
+#effect size estimates
+exp_coef <- exp(coef(model2))
+exp_confint <- exp(confint(model2))
+data.frame(Estimate = coef(model2), OR = exp_coef, CI_lower = exp_confint[,1], CI_upper = exp_confint[,2])
+
+
+
+# checking significance of adding variable 1
+anova(model0, model1, test="Chisq") #check if adding variable 2 is significant
+
+
+
+
 
 
 df_all <- bind_rows(
@@ -230,8 +373,6 @@ age_RVF <- glm(RVFpos~ age_cat, data = df_all, family = binomial)
 summary(age_RVF)
 exp(coef(age_RVF))
 exp(confint(age_RVF))
-
-
 #logistic regression for sex and seropositivity
 
 sex_CHK<- glm(CHKpos~sex, data = df_all, family = binomial)
@@ -251,7 +392,7 @@ exp(confint(sex_RVF))
 
 #Asembo
 asembodata<- Asembodata %>%
-  select(ageyrs,sex,age_cat,CHKpos, DENpos, RVFpos)
+  select(ageyrs,sex,agecat,CHKpos, DENpos, RVFpos)
   
 asembodata$RVFpos <- ifelse(asembodata$RVFpos == 1, TRUE, FALSE)
 asembodata$DENpos <- ifelse(asembodata$DENpos == 1, TRUE, FALSE)
@@ -268,16 +409,26 @@ asembo_chik <-SeroData(age_at_sampling = asembodata$ageyrs,
 seroprevalence(asembo_chik)
 seroprevalence.plot(asembo_chik, age_class = 5)
 
-piecewisemodel = FOImodel(type = 'outbreak', prioralpha1 = 0.5, prioralpha2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1, K=1, priorT1 = 10, priorT2 = 10)
+piecewisemodel = FOImodel(type = 'outbreak', prioralpha1 = 0.013, prioralpha2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1, K=1, priorT1 = 20, priorT2 = 10, sensitivity = 0.9, specificity = 0.99)
+constantmodel = FOImodel(type = 'constant', priorC1 = 0.013, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1)
 print(piecewisemodel)
+print(constantmodel)
 
 piecewisemodel = fit(data = asembo_chik,  model = piecewisemodel, chains=1, iter=5000)
-
+constantmodel = fit(data = asembo_chik,  model = constantmodel, chains=1, iter=5000)
 
 seroprevalence.fit(piecewisemodel, YLIM = 1, age_class = 5)
-plot(piecewisemodel, YLIM =2)
+seroprevalence.fit(constantmodel, YLIM = 1, age_class = 5)
+#model comparison
+m1 = compute_information_criteria(piecewisemodel)
+print(m1) 
+m2 = compute_information_criteria(constantmodel)
+print(m2) 
+
+plot(piecewisemodel, YLIM =1)
 plot_posterior(piecewisemodel)
 parameters_credible_intervals(piecewisemodel)
+parameters_credible_intervals(constantmodel)
 traceplot_Rsero(piecewisemodel)
 
 
@@ -286,7 +437,7 @@ traceplot_Rsero(piecewisemodel)
 
 #manyatta
 manyattadata<- manyattadata_clean %>%
-  select(ageyrs,sex,age_cat,CHKpos, DENpos, RVFpos)
+  select(ageyrs,sex,agecat,CHKpos, DENpos, RVFpos)
 manyattadata$RVFpos <- ifelse(manyattadata$RVFpos == 1, TRUE, FALSE)
 manyattadata$DENpos <- ifelse(manyattadata$DENpos == 1, TRUE, FALSE)
 manyattadata$CHKpos <- ifelse(manyattadata$CHKpos == 1, TRUE, FALSE)
@@ -302,7 +453,7 @@ manyatta_chik <-SeroData(age_at_sampling = manyattadata$ageyrs,
 seroprevalence(manyatta_chik)
 seroprevalence.plot(manyatta_chik, age_class = 5)
 #fit the model constant model
-manyattapiecewisemodel = FOImodel(type = 'constant', priorC1 = 0.02, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1)
+manyattapiecewisemodel = FOImodel(type = 'constant', priorC1 = 0.012, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1)
 print(manyattapiecewisemodel)
 
 manyattapiecewisemodel = fit(data = manyatta_chik,  model = manyattapiecewisemodel, chains=1, iter=5000)
@@ -419,27 +570,38 @@ df_all$ageyrs=  as.integer(df_all$ageyrs)
 df_chik <-SeroData(age_at_sampling = round(as.numeric(df_all$ageyrs)),
                              Y= as.numeric(df_all$RVFpos),
                              category = as.character(df_all$site),
-                             reference.category = cbind("ASEMBO", "MANYATTA", "KILIFI", "kibera", "NAIROBI"),
+                            reference.category = "NAIROBI",
                              sampling_year = as.numeric(2022))
 seroprevalence(df_chik)
 seroprevalence.plot(df_chik, age_class = 5)
 
 #model of force of infections
-piecewisemodel2= FOImodel(type="piecewise", cat_lambda = TRUE, priorC1 = 0.02, priorC2 = 1, seroreversion = 0, priorRho1 = 0.20, priorRho2 = 1, K=2, priorT1 = c(20,50), priorT2 = c(30,80))
-
+#constantmodel= FOImodel(type="constant",   priorC1 = 0.013, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 0)
+revmodel= FOImodel(type="constant", priorC1 = 0.05, priorC2 = 1, cat_lambda = TRUE, seroreversion = 1, priorRho1 = 0.1, priorRho2 = 0.58)
 #fit the model
-piecewise2= fit(data=df_chik, model=piecewisemodel2, chains=1, iter=5000)
+#constantmodel= fit(data=df_chik, model=constantmodel, chains=3, iter=5000)
+revmodel= fit(data=df_chik, model=revmodel, chains=3, iter=5000)
+
 
 #visualize the best model fit
-seroprevalence.fit(piecewise2, YLIM=1, age_class = 5)
+#seroprevalence.fit(constantmodel, YLIM=1, age_class = 5)
+seroprevalence.fit(revmodel, YLIM=1, age_class = 5)
+
 
 
 
 #Plotting the posterior distributions
-plot_posterior(piecewise2)
-
+plot_posterior(constantmodel)
+plot_posterior(revmodel)
 #Posterior distribution of relevant model parameters
-parameters_credible_intervals(piecewise2)
+#parameters_credible_intervals(constantmodel)
+parameters_credible_intervals(revmodel)
+
+
+#model comparison
+#m1 = compute_information_criteria(constantmodel)
+#print(m1)
+m2 = compute_information_criteria(revmodel)
 
 
 
@@ -1713,4 +1875,7 @@ ggplot(forest_data, aes(x = OR, y = predictor, color = significant)) +
   ggtitle("Forest Plot of RVFpos") +
   theme_minimal() +
   facet_grid(group ~ ., scales = "free_y", space = "free")
+
+
+
 
