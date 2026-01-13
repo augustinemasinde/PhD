@@ -22,16 +22,83 @@ chikdata <- chikdata %>%
   )
 
 #chikungunya transmission in 2019
-chikdata2019 <- data.frame(
-  survey_year = c(2019,2019,2019,2019,2019),
-  n_sample = c(115, 55,169, 23,9),
-  n_seropositive = c(12,3,10,1,1),
-  age_min = c(1,12,19,50,65),
-  age_max = c(11,18,49,64,97)
+chikdata2022 <- data.frame(
+  survey_year = c(2022,2022,2022,2022,2022,2022,2022,2022,2022,2022),
+  n_sample = c(195,152,100,98,102,103,65,29,4,1),
+  n_seropositive = c(13,13,23,29,36,50,37,21,3,1),
+  age_min = c(0,10,20,30,40,50,60,70,80,100),
+  age_max = c(9,19,29,39,49,59,69,79,89,110)
 )
 
-chikdata2019 <- chikdata2019 %>%
+chikdata2022 <- chikdata2022 %>%
   mutate(n_sample = as.integer(n_sample))
+
+
+
+# Implementation of the models
+seromodel_constant <- fit_seromodel(
+  serosurvey = chikdata2022,
+  foi_sigma_rw = sf_normal(0.2,0.2),
+  model_type = "constant",
+  foi_prior = sf_normal(0.01,1),
+  is_seroreversion = TRUE,
+  seroreversion_prior = sf_normal(0.006,0.3),
+  chains = 2,
+  iter = 1000
+)
+
+
+
+foi_index <- get_foi_index(chikdata2022, group_size = 1, model_type = "time")
+seromodel_time <- fit_seromodel(
+  serosurvey = chikdata2022,
+  model_type = "time",
+  foi_prior = sf_normal(0.05, 1),
+  foi_index = foi_index,
+  iter = 2500,
+  is_seroreversion = TRUE
+)
+
+
+foi_index <- get_foi_index(chikdata2022, group_size = 1, model_type = "time")
+seromodel_log_time <- fit_seromodel(
+  serosurvey = chikdata2022,
+  model_type = "time",
+  foi_prior = sf_normal(0, 0.01),
+  is_log_foi = TRUE,
+  foi_index = foi_index,
+  iter = 2000,
+  is_seroreversion = TRUE
+)
+
+
+# Visualisation of the results
+plot_constant<-plot_seromodel(
+  seromodel = seromodel_constant,
+  serosurvey = chikdata2022,
+  foi_max = 0.07,
+  size_text = 6
+)
+plot_time<-plot_seromodel(
+  seromodel = seromodel_time,
+  serosurvey = chikdata2022,
+  foi_max = 0.07,
+  size_text = 6
+)
+plot_log_time <- plot_seromodel(
+  seromodel = seromodel_log_time,
+  serosurvey = chikdata2022,
+  foi_max = 0.07,
+  size_text = 6
+)
+
+cowplot::plot_grid(plot_constant, plot_time, plot_log_time, ncol = 3)
+
+
+
+
+
+
 
 # Implementation of the models
 seromodel_constant <- fit_seromodel(
@@ -220,10 +287,10 @@ cowplot::plot_grid(plot_constant, plot_time, plot_log_time, ncol = 3)
 #chikungunya transmission in 2022
 chikdata2022 <- data.frame(
   survey_year = c(2022,2022,2022,2022,2022),
-  n_sample = c(6, 7,56, 6,6),
-  n_seropositive = c(0,1,3,1,0),
-  age_min = c(1,12,19,50,65),
-  age_max = c(11,18,49,64,97)
+  n_sample = c(96, 195,306, 202,50),
+  n_seropositive = c(6,18,68,102,32),
+  age_min = c(0,5,15,45,65),
+  age_max = c(4,14,44,64,101)
 )
 
 chikdata2022 <- chikdata2022 %>%
@@ -232,7 +299,12 @@ chikdata2022 <- chikdata2022 %>%
 # Implementation of the models
 seromodel_constant <- fit_seromodel(
   serosurvey = chikdata2022,
+  foi_sigma_rw = sf_normal(0.2,0.2),
   model_type = "constant",
+  foi_prior = sf_normal(0.01,1),
+  is_seroreversion = TRUE,
+  seroreversion_prior = sf_normal(0.006,0.3),
+  chains = 2,
   iter = 1000
 )
 
@@ -244,7 +316,8 @@ seromodel_time <- fit_seromodel(
   model_type = "time",
   foi_prior = sf_normal(0, 0.01),
   foi_index = foi_index,
-  iter = 2500
+  iter = 2500,
+  is_seroreversion = TRUE
 )
 
 
@@ -255,18 +328,19 @@ seromodel_log_time <- fit_seromodel(
   foi_prior = sf_normal(0, 0.01),
   is_log_foi = TRUE,
   foi_index = foi_index,
-  iter = 2000
+  iter = 2000,
+  is_seroreversion = TRUE
 )
 
 
 # Visualisation of the results
-plot_constant <- plot_seromodel(
+plot_seromodel(
   seromodel = seromodel_constant,
   serosurvey = chikdata2022,
   foi_max = 0.07,
   size_text = 6
 )
-plot_time <- plot_seromodel(
+plot_time<-plot_seromodel(
   seromodel = seromodel_time,
   serosurvey = chikdata2022,
   foi_max = 0.07,
