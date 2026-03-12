@@ -1,0 +1,10 @@
+outputs/
+hpc/
+data/
+old/
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^LICENSE\.md$
+^\.github$
+scp/

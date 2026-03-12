@@ -1,0 +1,22 @@
+outputs/fits/*
+vignettes/working/*
+# Except for the simulate_data directory
+!outputs/fits/simulated_data/
+
+R/manu/app_conv.R
+R/manu/app_conv_alt.R
+R/manu/app_conv_alt_2.Rp0
+
+scp/
+# Ensure the contents of simulate_data are tracked
+!outputs/fits/simulated_data/*
+
+outputs/prior_pred
+methods/
+outputs/test
+hpc/
+data/
+old/
+/src/rjmc_func.o
+/src/serojump.so
+/src/RcppExports.o

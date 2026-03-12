@@ -36,14 +36,11 @@ library(ggplot2)
 Asembodata <- zap_labels(Asembodata)
 
 df <- dplyr::select(Asembodata, CHKV_AIU, ageyrs, DENV2_AIU)
-z_raw <- df$DENV2_AIU          # Raw titres (MFI or similar)
-a <- df$ageyrs + 0.5          # Age centered (midpoint of age year)
-
-# === 2. Log-transform titre data (critical!) ===
-z_logged <- log(z_raw + 1)
-
-# Prepare data frame for spline fitting
-z_and_a <- data.frame(z = z_logged, a = a)
+df_clean <- df %>% filter(!is.na(CHKV_AIU), CHKV_AIU >= 0)
+z_raw_clean <- df_clean$CHKV_AIU
+a_clean <- df_clean$ageyrs + 0.5
+z_logged <- log(z_raw_clean + 1)
+z_and_a <- data.frame(z = z_logged, a = a_clean)
 
 # === 3. Plot raw log titres vs age (to inspect data) ===
 ggplot(z_and_a, aes(x = a, y = z)) +

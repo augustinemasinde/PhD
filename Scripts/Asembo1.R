@@ -9,8 +9,161 @@ library(tidyverse)
 library(Rsero)
 library(mclust)
 library(ggplot2)
+library(dplyr)
+library(ggplot2)
+library(lme4)
+library(serojump)
+library(devtools)
+
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
+
+
+
+longitudinal_data <- read.csv("Paired_R2_R3(Sheet1).csv", stringsAsFactors = FALSE)
+
+n_total <- nrow(longitudinal_data)
+n_total
+
+#Time between visits
+longitudinal_data <- longitudinal_data %>%
+  mutate(
+    visit_date_r2 = as.POSIXct(visit_date_r2, tz = "UTC"),
+    visit_date_r3 = as.POSIXct(visit_date_r3, tz = "UTC"),
+    days_between_visits = as.numeric(
+      difftime(visit_date_r3, visit_date_r2, units = "days")
+    )
+  )
+
+#Descriptive stats on serostatus at baseline and end
+baseline_pos <- sum(longitudinal_data$CHIKE1_pos_r2 == 1, na.rm = TRUE)
+baseline_neg <- sum(longitudinal_data$CHIKE1_pos_r2 == 0, na.rm = TRUE)
+
+end_pos <- sum(longitudinal_data$CHKpos_r3 == 1, na.rm = TRUE)
+end_neg <- sum(longitudinal_data$CHKpos_r3 == 0, na.rm = TRUE)
+
+baseline_pos
+baseline_neg
+end_pos
+end_neg
+
+table(
+  Baseline = longitudinal_data$CHIKE1_pos_r2,
+  Endline  = longitudinal_data$CHKpos_r3
+)
+
+longitudinal_data <- longitudinal_data %>%
+  mutate(
+    seroreverted = ifelse(CHIKE1_pos_r2 == 1 & CHKpos_r3 == 0, 1, 0)
+  )
+
+at_risk <- longitudinal_data %>%
+  filter(CHIKE1_pos_r2 == 1)
+
+n_reversions <- sum(at_risk$seroreverted, na.rm = TRUE)
+
+total_person_days <- sum(at_risk$days_between_visits, na.rm = TRUE)
+
+rho_per_day <- n_reversions / total_person_days
+rho_per_year <- rho_per_day * 365
+
+
+
+
+
+analysis_chikv <- longitudinal_data %>%
+  filter(
+    CHIKE1_pos_r2 == 1,
+    CHK_au_r2 > 0,
+    CHK_au_r3 > 0,
+    CHK_au_r3 < CHK_au_r2,
+    days_between_visits > 0
+  ) %>%
+  mutate(
+    delta_t = days_between_visits,
+    delta_log = log(CHK_au_r3) - log(CHK_au_r2),
+    log_dt = log(delta_t)
+  ) %>%
+  select(pair_id, delta_t, log_dt, delta_log)
+
+ggplot(analysis_chikv, aes(x = delta_t, y = delta_log)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme_classic()
+
+fit_exp <- lm(delta_log ~ delta_t - 1, data = analysis_chikv)
+summary(fit_exp)
+
+k_day <- -coef(fit_exp)["delta_t"]
+half_life_days <- log(2) / k_day
+
+k_day
+half_life_days
+
+ggplot(analysis_chikv, aes(x = log_dt, y = delta_log)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme_classic()
+
+fit_power <- lm(delta_log ~ log_dt - 1, data = analysis_chikv)
+summary(fit_power)
+
+AIC(fit_exp, fit_power)
+
+t_grid <- seq(
+  min(analysis_chikv$delta_t),
+  max(analysis_chikv$delta_t),
+  length.out = 200
+)
+
+k_day <- -coef(fit_exp)["delta_t"]
+
+pred_exp <- data.frame(
+  delta_t = t_grid,
+  delta_log = -k_day * t_grid,
+  model = "Exponential"
+)
+
+
+beta <- -coef(fit_power)["log_dt"]
+
+pred_power <- data.frame(
+  delta_t = t_grid,
+  delta_log = -beta * log(t_grid),
+  model = "Power-law"
+)
+
+
+pred_all <- bind_rows(pred_exp, pred_power)
+
+
+ggplot() +
+  geom_point(
+    data = analysis_chikv,
+    aes(x = delta_t, y = delta_log),
+    alpha = 0.6
+  ) +
+  geom_line(
+    data = pred_all,
+    aes(x = delta_t, y = delta_log, color = model),
+    linewidth = 1.2
+  ) +
+  scale_color_manual(
+    values = c("Exponential" = "#0072B2", "Power-law" = "#D55E00")
+  ) +
+  labs(
+    x = "Days between visits",
+    y = "Log antibody change",
+    color = "Model",
+    title = "CHIKV antibody waning: exponential vs power-law"
+  ) +
+  theme_classic(base_size = 13)
+
+
+
+
+
+
 
 # Robust data loader: update data_dir to where your .dta files live (or use here::here("..."))
 data_dir <- "/Users/augustinemasinde/Desktop/PhD files/Global Health"  # <- update if needed
@@ -38,6 +191,286 @@ manyattadata <- haven::read_dta(data_files$manyattadata)
 NairobiUrbandata <- haven::read_dta(data_files$NairobiUrbandata)
 
 
+
+
+library(ggplot2)
+library(dplyr)
+library(Cairo)
+library(grid)
+#forest plot
+adjusted_df <- read.csv(
+  "adjusted_seroprevalence_by_site_pathogen.csv",
+  stringsAsFactors = FALSE)
+
+     
+labels_combined <- unlist(
+  lapply(unique(adjusted_df$site), function(s) {
+    c(s, paste0("  ", adjusted_df$pathogen[adjusted_df$site == s]), "")
+  })
+)
+
+labels_combined <- labels_combined[-length(labels_combined)]
+y_positions <- rev(seq_along(labels_combined))
+
+plot_labels_df <- data.frame(
+  y_label = labels_combined,
+  y = y_positions,
+  stringsAsFactors = FALSE
+)
+
+get_y_pos <- function(site, pathogen) {
+  site_idx <- which(labels_combined == site)
+  pathogen_label <- paste0("  ", pathogen)
+  pathogen_idx <- which(labels_combined == pathogen_label)
+  
+  # Filter pathogen indices that come after site index
+  pathogen_idx_after_site <- pathogen_idx[pathogen_idx > site_idx]
+  
+  if (length(pathogen_idx_after_site) == 0) return(NA_real_)
+  return(y_positions[pathogen_idx_after_site[1]])
+}
+
+plot_data <- adjusted_df %>%
+  rowwise() %>%
+  mutate(
+    y = get_y_pos(site, pathogen)
+  ) %>%
+  ungroup()
+
+ggplot() +
+  geom_point(data = plot_data, aes(x = estimate, y = y, color = pathogen), size = 3) +
+  geom_errorbarh(data = plot_data, aes(y = y, xmin = lower, xmax = upper, color = pathogen), height = 0.3, linewidth = 0.8) +
+  scale_y_continuous(
+    breaks = y_positions,
+    labels = labels_combined,
+    limits = range(y_positions) + c(-0.5, 0.5)
+  ) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 10),
+    labels = scales::percent_format(scale = 1)
+  ) +
+  scale_color_manual(values = c("CHIKV" = "#D55E00", "DENV" = "#0072B2", "RVFV" = "#009E73")) +
+  labs(x = "Adjusted Seroprevalence (%)", y = NULL, color = "Pathogen") +
+  theme_minimal(base_size = 10) +
+  theme(
+    axis.text.y = element_text(family = "Times New Roman", size = 10, hjust = 0),
+    axis.text.x = element_text(family = "Times New Roman", size = 10),
+    axis.title.x = element_text(family = "Times New Roman", size = 10),
+    legend.position = "bottom",
+    legend.title = element_text(family = "Times New Roman", size = 10),
+    legend.text = element_text(family = "Times New Roman", size = 9),
+    panel.grid.major.x = element_line(color = "grey80"),
+    panel.grid.major.y = element_blank()
+  ) +
+  geom_vline(xintercept = c(0, 100), linetype = "dashed", color = "grey50", linewidth = 0.6)
+
+library(Cairo)
+
+dpi <- 300
+width_mm <- 107
+height_mm <- 140  # Adjust height for 5 sites with spacing
+
+width_px <- round((width_mm / 25.4) * dpi)
+height_px <- round((height_mm / 25.4) * dpi)
+
+Cairo::Cairo(
+  file = "forest_plot_lancet.tiff",
+  type = "tiff",
+  width = width_px,
+  height = height_px,
+  units = "px",
+  dpi = dpi,
+  bg = "white"
+)
+
+print(
+  last_plot() + 
+    theme(
+      text = element_text(family = "Times New Roman"),
+      axis.text.y = element_text(family = "Times New Roman", size = 10, hjust = 0),
+      axis.text.x = element_text(family = "Times New Roman", size = 10),
+      axis.title.x = element_text(family = "Times New Roman", size = 10),
+      legend.position = "bottom",
+      legend.title = element_text(family = "Times New Roman", size = 10),
+      legend.text = element_text(family = "Times New Roman", size = 9)
+    )
+)
+dev.off()
+
+
+ggsave(
+  filename = "forest_plot_lancet_single1.tiff",
+  plot = p,
+  device = "tiff",
+  width = 4.21,
+  height = 3.5, # adjust as needed
+  dpi = 300,
+  units = "in"
+)
+
+ggsave("forest_plot_highres.png", plot = p, width = 10, height = 6, dpi = 300, units = "in")
+ggsave("forest_plot_highres1.tiff", plot = p, width = 10, height = 6, dpi = 300, units = "in", device = "tiff")
+
+
+#By pathogen
+
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(Cairo)
+
+adjusted_df <- read.csv(
+  "adjusted_seroprevalence_by_site_pathogen.csv",
+  stringsAsFactors = FALSE
+)
+
+labels_combined <- unlist(
+  lapply(unique(adjusted_df$pathogen), function(p) {
+    c(
+      p,
+      paste0("  ", adjusted_df$site[adjusted_df$pathogen == p]),
+      ""
+    )
+  })
+)
+
+labels_combined <- labels_combined[-length(labels_combined)]
+y_positions <- rev(seq_along(labels_combined))
+
+get_y_pos <- function(pathogen, site) {
+  pathogen_idx <- which(labels_combined == pathogen)
+  site_label <- paste0("  ", site)
+  site_idx <- which(labels_combined == site_label)
+  site_idx_after_pathogen <- site_idx[site_idx > pathogen_idx]
+  if (length(site_idx_after_pathogen) == 0) return(NA_real_)
+  y_positions[site_idx_after_pathogen[1]]
+}
+
+plot_data <- adjusted_df %>%
+  rowwise() %>%
+  mutate(
+    y = get_y_pos(pathogen, site)
+  ) %>%
+  ungroup()
+
+p <- ggplot() +
+  geom_point(data = plot_data, aes(x = estimate, y = y, color = pathogen), size = 3) +
+  geom_errorbarh(
+    data = plot_data,
+    aes(y = y, xmin = lower, xmax = upper, color = pathogen),
+    height = 0.3,
+    linewidth = 0.8
+  ) +
+  scale_y_continuous(
+    breaks = y_positions,
+    labels = labels_combined,
+    limits = range(y_positions) + c(-0.5, 0.5)
+  ) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 10),
+    labels = percent_format(scale = 1)
+  ) +
+  scale_color_manual(
+    values = c(
+      "CHIKV" = "#D55E00",
+      "DENV"  = "#0072B2",
+      "RVFV"  = "#009E73"
+    )
+  ) +
+  labs(
+    x = "Adjusted Seroprevalence (%)",
+    y = NULL,
+    color = "Pathogen"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    text = element_text(family = "Times New Roman"),
+    axis.text.y = element_text(size = 10, hjust = 0),
+    axis.text.x = element_text(size = 10),
+    axis.title.x = element_text(size = 10),
+    legend.position = "bottom",
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9),
+    panel.grid.major.x = element_line(color = "grey80"),
+    panel.grid.major.y = element_blank()
+  ) +
+  geom_vline(
+    xintercept = c(0, 100),
+    linetype = "dashed",
+    color = "grey50",
+    linewidth = 0.6
+  )
+
+dpi <- 300
+width_mm <- 107
+height_mm <- 140
+
+width_px <- round((width_mm / 25.4) * dpi)
+height_px <- round((height_mm / 25.4) * dpi)
+
+Cairo(
+  file = "forest_plot_lancet_grouped_by_pathogen.tiff",
+  type = "tiff",
+  width = width_px,
+  height = height_px,
+  units = "px",
+  dpi = dpi,
+  bg = "white"
+)
+
+print(p)
+dev.off()
+
+ggsave(
+  filename = "forest_plot_lancet_grouped_by_pathogen.png",
+  plot = p,
+  width = 4.21,
+  height = 5.5,
+  dpi = 300,
+  units = "in"
+)
+
+
+
+
+library(ggplot2)
+library(dplyr)
+library(forcats)
+
+seroprev_df_ageadj <- read.csv("age_adjusted_seroprevalence.csv", stringsAsFactors = FALSE)
+
+seroprev_df_ageadj <- seroprev_df_ageadj %>%
+  filter(age_group != "Overall") %>%  
+  filter(!is.na(age_group))           
+
+seroprev_df_ageadj <- seroprev_df_ageadj %>%
+  mutate(
+    age_group = factor(age_group, levels = c("<5", "5-14", "15-44", "45-64", "65+")),
+    pathogen = factor(pathogen, levels = c("CHIKV", "DENV", "RVFV")),
+    site = factor(site, levels = c("Asembo", "Kilifi", "Manyatta", "Kibera", "Nairobi"))
+  )
+
+ggplot(seroprev_df_ageadj, aes(x = age_group, y = estimate, color = pathogen)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+  facet_wrap(~ site, nrow = 1) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+  labs(
+    title = "Age-stratified Adjusted Seroprevalence by Site and virus",
+    x = "Age Group",
+    y = "Adjusted Seroprevalence (%)",
+    color = "Virus"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+ggsave("age_stratified_seroprevalence.png", plot = last_plot(), width = 10, height = 6, dpi = 300, units = "in")
 
 # --------------------------------------------------
 # Data preparation (DO THIS ONCE)
@@ -2417,15 +2850,15 @@ asembodata <- asembodata %>%
 asembodata$sex<-as.character(asembodata$sex)
 
 asembo_chik <-SeroData(age_at_sampling = asembodata$ageyrs,
-                       Y= asembodata$DENpos,
+                       Y= asembodata$CHKpos,
                        sampling_year = 2022)
 seroprevalence(asembo_chik)
 seroprevalence.plot(asembo_chik, age_class = 5)
 #model of force of infections
-constantmodel = FOImodel(type = 'constant', priorC1 = 0.009, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1)
+constantmodel = FOImodel(type = 'constant', priorC1 = 0.2, priorC2 = 1, seroreversion = 1, priorRho1 = 1.38, priorRho2 = 1)
 
-piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.009, priorC2= 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1,
-                          K=2, priorT1 = 40, priorT2 = 0) 
+piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.2, priorC2= 1, seroreversion = 1, priorRho1 = 1.38, priorRho2 = 1,
+                          K=2, priorT1 = 30, priorT2 = 10) 
 
 
 
@@ -2491,7 +2924,7 @@ manyatta_chik <-SeroData(age_at_sampling = manyattadata$ageyrs,
 seroprevalence(manyatta_chik)
 seroprevalence.plot(manyatta_chik, age_class = 5)
 #fit the model constant mo
-constantmodel = FOImodel(type = 'constant', priorC1 = 0.01, priorC2 = 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1)
+constantmodel = FOImodel(type = 'constant', priorC1 = 0.01, priorC2 = 1, seroreversion = 1, priorRho1 = 0.75, priorRho2 = 1)
 print(constantmodel)
 piecewisemodel = FOImodel(type = 'piecewise', priorC1 = 0.2, priorC2= 1, seroreversion = 1, priorRho1 = 0.2, priorRho2 = 1,
                           K=2, priorT1 = 25, priorT2 = 0.5)
@@ -3080,22 +3513,20 @@ plot_virus("RVFV")
 
 #Bayesian population weighting
 #asembo population data
+library(readxl)
+library(tidyverse)
+library(readstata13)
+
 file_path <- '/Users/augustinemasinde/Desktop/PhD files/Global Health/Data/PBIDS_sites_Ase_Man_Kib_midyr_popn_2022.xlsx'
 
-pop_data <- read_excel(
-  path = file_path,
-  sheet = 1,
-  col_types = "text"
-)
-pop_data<- pop_data %>%
+pop_asembo <- read_excel(file_path, sheet = "Asembo_mid_2022")
+pop_asembo<- pop_asembo %>%
   select(Ageband,Sex,N_mid2022)
-pop_data <- pop_data %>% 
+pop_asembo <- pop_asembo %>% 
   filter(if_any(everything(), ~ !is.na(.) & . != "")) %>% 
   filter(!grepl("Total", .[[1]], ignore.case = TRUE))
-#create age categories
-library(dplyr)
 
-asembo_pop_data <- pop_data %>%
+asembo_pop_data <- pop_asembo %>%
   mutate(age_group = case_when(
     Ageband %in% c("0–4") ~ "<5",
     Ageband %in% c("5–9", "10–14") ~ "5-14",
@@ -3104,29 +3535,25 @@ asembo_pop_data <- pop_data %>%
     Ageband == "65+" ~ "65+",
     TRUE ~ NA_character_
   ))
-asembo_pop_data$site<- "ASEMBO"
 
 asembo_pop_data <- asembo_pop_data %>%
   mutate(N_mid2022 = as.numeric(N_mid2022))
-
 asembo_pop_data <- asembo_pop_data %>%
   group_by(Sex, age_group) %>%
   summarise(N_mid2022 = sum(N_mid2022, na.rm = TRUE), .groups = "drop")
 
 
 #manyatta population data
-file_path<-'/Users/augustinemasinde/Desktop/PhD files/Global Health/PhD/Data/manyatta.xlsx'
-manyatta_pop_data <- read_excel(
-  path = file_path,
-  sheet = 1,
-  col_types = "text"
-)
-manyatta_pop_data<- manyatta_pop_data %>% select(Ageband, Sex, N_mid2022)
-manyatta_pop_data <- manyatta_pop_data %>% 
+pop_manyatta <- read_excel(file_path, sheet = "Manyatta_mid_2022")
+
+pop_manyatta<- pop_manyatta %>%
+  select(Ageband,Sex,N_mid2022)
+pop_manyatta <- pop_manyatta %>% 
   filter(if_any(everything(), ~ !is.na(.) & . != "")) %>% 
   filter(!grepl("Total", .[[1]], ignore.case = TRUE))
+
 #create age categories
-manyatta_pop_data <- manyatta_pop_data %>%
+manyatta_pop_data <- pop_manyatta %>%
   mutate(age_group = case_when(
     Ageband %in% c("0–4") ~ "<5",
     Ageband %in% c("5–9", "10–14") ~ "5-14",
@@ -3135,27 +3562,25 @@ manyatta_pop_data <- manyatta_pop_data %>%
     Ageband == "65+" ~ "65+",
     TRUE ~ NA_character_
   ))
+
+#convert N_mid2022 to numeric
 manyatta_pop_data <- manyatta_pop_data %>%
   mutate(N_mid2022 = as.numeric(N_mid2022))
-manyatta_pop_data<-manyatta_pop_data %>% select(Sex, age_group, N_mid2022)
-
 manyatta_pop_data <- manyatta_pop_data %>%
   group_by(Sex, age_group) %>%
   summarise(N_mid2022 = sum(N_mid2022, na.rm = TRUE), .groups = "drop")
 
 #kibera population data
-file_path<-'/Users/augustinemasinde/Desktop/PhD files/Global Health/PhD/Data/kibera.xlsx'
-kibera_pop_data <- read_excel(
-  path = file_path,
-  sheet = 1,
-  col_types = "text"
-)
-kibera_pop_data<- kibera_pop_data %>% select(Ageband, Sex, N_mid2022)
-kibera_pop_data <- kibera_pop_data %>% 
+pop_kibera <- read_excel(file_path, sheet = "Kibera_mid_2022")
+pop_kibera<- pop_kibera %>%
+  select(Ageband,Sex,N_mid2022)
+pop_kibera <- pop_kibera %>% 
   filter(if_any(everything(), ~ !is.na(.) & . != "")) %>% 
   filter(!grepl("Total", .[[1]], ignore.case = TRUE))
+
+
 #create age categories
-kibera_pop_data <- kibera_pop_data %>%
+kibera_pop_data <- pop_kibera %>%
   mutate(age_group = case_when(
     Ageband %in% c("0–4") ~ "<5",
     Ageband %in% c("5–9", "10–14") ~ "5-14",
@@ -3164,15 +3589,6 @@ kibera_pop_data <- kibera_pop_data %>%
     Ageband == "65+" ~ "65+",
     TRUE ~ NA_character_
   ))
-
-kibera_pop_data <- kibera_pop_data %>%
-  mutate(N_mid2022 = as.numeric(N_mid2022))
-kibera_pop_data<-kibera_pop_data %>% select(Sex, age_group, N_mid2022)
-
-kibera_pop_data <- kibera_pop_data %>%
-  group_by(Sex, age_group) %>%
-  summarise(N_mid2022 = sum(N_mid2022, na.rm = TRUE), .groups = "drop")
-
 
 #nairobi population data
 nairobi_pop_data <- read_dta('/Users/augustinemasinde/Desktop/PhD files/Global Health/stdized_pop_by_sex_loc_nrb.dta')
@@ -3239,13 +3655,13 @@ nrb_set <- nrb_set %>%
   mutate(agecat = factor(agecat, levels = c("<5", "5-14", "15-44", "45-64", "65+"))) %>%
   arrange(agecat)
 
-nairobi_data <-Nairobi_clean %>%
+nairobi_data <-NairobiUrbandata %>%
   mutate(agecat = case_when(
-    ageyrs >= 0 & ageyrs < 5 ~ "<5",
-    ageyrs >= 5 & ageyrs <15 ~ "5-14",
-    ageyrs >= 15 & ageyrs <45 ~ "15-44",
-    ageyrs >= 45 & ageyrs <65 ~ "45-64",
-    ageyrs >= 65 ~ "65+",
+    age_y >= 0 & age_y < 5 ~ "<5",
+    age_y >= 5 & age_y <15 ~ "5-14",
+    age_y >= 15 & age_y <45 ~ "15-44",
+    age_y >= 45 & age_y <65 ~ "45-64",
+    age_y >= 65 ~ "65+",
     TRUE ~ NA_character_
   ))
 nairobi_data <- nairobi_data %>%
@@ -3256,7 +3672,7 @@ nrb_counts <-
   nairobi_data %>%
   group_by(sex, agecat, .drop = FALSE) %>%
   summarise(
-    y = sum(RVFpos == "1"),
+    y = sum(rvfgc_pos == "1"),
     n = n(),
     .groups = "drop"
   ) %>%
@@ -3376,7 +3792,7 @@ kilifi_data<- kilifi_data %>% select(agecat, sex, chke1_pos,denv_pos,rvfgc_pos)
 kilifi_counts <- 
   kilifi_data %>%
   group_by(sex, agecat, .drop = FALSE) %>%
-  summarise(y = sum(rvfgc_pos), n = n()) %>%
+  summarise(y = sum(denv_pos), n = n()) %>%
   mutate(n=ifelse(is.na(y),1,n), # replacing values in the n strata with no data with 0
          y=ifelse(is.na(y),0,y))
 
@@ -3477,6 +3893,14 @@ kibera_set <- kibera_set %>%
   mutate(sex = recode(sex,
                       "Female" = "F",
                       "Male"   = "M"))
+
+kibera_set <-kibera_set %>%
+  group_by(agecat, sex) %>%
+  summarise(
+    pop = sum(pop, na.rm = TRUE),
+    .groups = "drop"
+  )
+
 kibera_set<-kibera_set %>% mutate(pw = pop/sum(pop)) %>% select(agecat, sex, pop, pw)
 kibera_set <- kibera_set %>%
   mutate(agecat = factor(agecat, levels = c("<5", "5-14", "15-44", "45-64", "65+"))) %>%
@@ -3721,10 +4145,10 @@ fit <- sampling(
     pw = pw,
     tot_pw_age = tot_pw_age,
     tot_pw_sex = tot_pw_sex,
-    x = 2,
-    z = 138,
-    N_se = 2,
-    N_sp =145
+    x = 52,
+    z = 65,
+    N_se = 57,
+    N_sp =76
     
   ),
   chains = 3,
@@ -4332,16 +4756,14 @@ library(mgcv)
 library(mixR)
 
 df <- Asembodata %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
-df<- Manyattadata %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
+df<- manyattadata %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
 df<- Kilifidata %>% dplyr::select(age_y, chkve1_au,denv2ns1_au) %>% mutate(ageyrs= age_y, CHKV_AIU= chkve1_au, DENV2_AIU= denv2ns1_au) %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
 df<- Kiberadata %>% dplyr::select(ageyrs, chkve1_au, denv2ns1_au) %>% mutate(ageyrs= ageyrs, CHKV_AIU= chkve1_au, DENV2_AIU= denv2ns1_au) %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
+
+df <- df %>% filter(!is.na(CHKV_AIU), CHKV_AIU >= 0)
 a <- df$ageyrs
 z <- log(df$CHKV_AIU + 1)
-
-mfi_values <- df$CHKV_AIU[df$CHKV_AIU > 0]
-log_mfi <- log(mfi_values + 1)
-
-mix_model <- mixfit(log_mfi, family = "gamma", ncomp = 2)
+mix_model <- mixfit(z, family = "gamma", ncomp = 2)
 print(mix_model)
 plot(mix_model)
 
@@ -4349,8 +4771,8 @@ ord <- order(mix_model$mu)
 muS  <- mix_model$mu[ord[1]]
 muI  <- mix_model$mu[ord[2]]
 
-k_val <- 5
-gam_fit <- gam(z ~ s(a, bs = "cr", k = k_val), data = df, method = "REML", sp= 0.1)
+
+gam_fit <- gam(z ~ s(a, bs = "ps", k = 10), data = df, method = "REML")
 gam.check(gam_fit)
 plot(gam_fit, shade = TRUE)
 
@@ -4421,15 +4843,15 @@ library(mgcv)
 
 
 df <- Asembodata %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
-df<- Manyattadata %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
+df<- manyattadata %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
 df<- Kilifidata %>% dplyr::select(age_y, chkve1_au,denv2ns1_au) %>% mutate(ageyrs= age_y, CHKV_AIU= chkve1_au, DENV2_AIU= denv2ns1_au) %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
 df<- Kiberadata %>% dplyr::select(ageyrs, chkve1_au, denv2ns1_au) %>% mutate(ageyrs= ageyrs, CHKV_AIU= chkve1_au, DENV2_AIU= denv2ns1_au) %>% dplyr::select(ageyrs, CHKV_AIU, DENV2_AIU)
+df <- df %>% filter(!is.na(CHKV_AIU), CHKV_AIU >= 0)
 a <- df$ageyrs
 z <- log(df$CHKV_AIU + 1)
 
-log_mfi <- log(df$CHKV_AIU[df$CHKV_AIU > 0] + 1)
 
-mix_model <- mixfit(log_mfi, family = "gamma", ncomp = 2)
+mix_model <- mixfit(z, family = "gamma", ncomp = 2)
 print(mix_model)
 
 ord <- order(mix_model$mu)
@@ -4439,10 +4861,10 @@ muI <- mix_model$mu[ord[2]]
 iso_fit <- scam(
   z ~ s(a, bs = "mpi", k = 30),
   data = df,
-  sp = 1e-4
 )
 
 summary(iso_fit)
+plot(iso_fit, shade = TRUE)
 
 age_grid <- seq(min(a), max(a), length.out = 200)
 
