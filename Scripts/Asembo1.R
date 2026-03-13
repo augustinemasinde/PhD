@@ -24,7 +24,6 @@ longitudinal_data <- read.csv("Paired_R2_R3(Sheet1).csv", stringsAsFactors = FAL
 
 n_total <- nrow(longitudinal_data)
 n_total
-
 #Time between visits
 longitudinal_data <- longitudinal_data %>%
   mutate(
